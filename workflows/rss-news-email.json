@@ -1,0 +1,233 @@
+{
+  "name": "N8News - Resumo diario de noticias por email",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Como editar temas, feeds e filtros\n\n1. Abra o node **Config** (o primeiro depois do Schedule Trigger).\n2. `feeds`: adicione ou remova fontes RSS. Cada feed tem um `topic`.\n3. `topicsMeta`: define o rotulo de cada tema e um filtro opcional.\n   - Para um tema tipo \"Acoes\", use `filter.mode = 'include'` e liste\n     as empresas/tickers que voce quer acompanhar em `keywords`.\n   - Para adicionar uma acao nova: adicione o nome/ticker no array.\n   - Para remover: apague o item do array.\n   - Voce pode criar filtros `exclude` em qualquer outro tema tambem\n     (ex: remover noticias de celebridades do tema Brasil).\n4. Salve e teste com \"Execute workflow\" antes de ativar.\n",
+        "height": 420,
+        "width": 380,
+        "color": 5
+      },
+      "id": "ae34a726-8680-40ff-9cbc-687b7e5b26a6",
+      "name": "Instrucoes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -260,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * *"
+            }
+          ]
+        }
+      },
+      "id": "5019ec9d-878c-4069-be8b-e73ca2d0cd6e",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "/**\n * CONFIGURACAO DO NEWSLETTER DE NOTICIAS\n * ---------------------------------------\n * Edite este node para adicionar/remover fontes RSS, temas (topics) e filtros.\n *\n * Cada tema em `topicsMeta` pode ter um filtro opcional:\n *   - mode: \"include\" -> so passam noticias que mencionem uma das keywords\n *   - mode: \"exclude\" -> descarta noticias que mencionem uma das keywords\n *   - filter: null     -> sem filtro, todas as noticias do tema passam\n *\n * Exemplo (Acoes): so chegam noticias sobre as empresas/tickers listados.\n * Para adicionar uma acao nova, inclua o nome/ticker no array `keywords`.\n * Para remover, apague o item do array. O mesmo vale para qualquer outro tema.\n */\n\nconst topicsMeta = {\n  brasil: { label: '🇧🇷 Brasil', filter: null },\n  mundo: { label: '🌍 Mundo', filter: null },\n  economia: { label: '💰 Economia', filter: null },\n  tecnologia: { label: '💻 Tecnologia', filter: null },\n  acoes: {\n    label: '📈 Acoes e Mercado',\n    filter: {\n      mode: 'include',\n      keywords: [\n        'Petrobras', 'PETR4',\n        'Vale', 'VALE3',\n        'Itau', 'ITUB4',\n        'Bradesco', 'BBDC4',\n        'Banco do Brasil', 'BBAS3',\n        'Magazine Luiza', 'MGLU3',\n        'Ambev', 'ABEV3',\n        'Nubank', 'ROXO34',\n        'B3', 'Ibovespa'\n      ]\n    }\n  }\n};\n\n// Ordem em que os temas aparecem no e-mail final\nconst topicOrder = ['brasil', 'mundo', 'economia', 'tecnologia', 'acoes'];\n\n// Lista de feeds RSS. Cada feed pertence a um dos temas acima (`topic`).\nconst feeds = [\n  { topic: 'brasil', source: 'G1', url: 'https://g1.globo.com/rss/g1/' },\n  { topic: 'brasil', source: 'Folha - Ultimas', url: 'https://feeds.folha.uol.com.br/emcimadahora/rss091.xml' },\n  { topic: 'brasil', source: 'Estadao', url: 'https://www.estadao.com.br/arc/outboundfeeds/rss/' },\n\n  { topic: 'mundo', source: 'BBC Brasil (Mundo)', url: 'https://www.bbc.com/portuguese/index.xml' },\n  { topic: 'mundo', source: 'BBC World', url: 'http://feeds.bbci.co.uk/news/world/rss.xml' },\n  { topic: 'mundo', source: 'The Guardian - World', url: 'https://www.theguardian.com/world/rss' },\n  { topic: 'mundo', source: 'NYT - World', url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml' },\n\n  { topic: 'economia', source: 'Folha - Mercado', url: 'https://feeds.folha.uol.com.br/mercado/rss091.xml' },\n  { topic: 'economia', source: 'G1 - Economia', url: 'https://g1.globo.com/rss/g1/economia/' },\n\n  { topic: 'tecnologia', source: 'G1 - Tecnologia', url: 'https://g1.globo.com/rss/g1/tecnologia/' },\n  { topic: 'tecnologia', source: 'The Verge', url: 'https://www.theverge.com/rss/index.xml' },\n\n  { topic: 'acoes', source: 'InfoMoney - Mercados', url: 'https://www.infomoney.com.br/mercados/feed/' },\n  { topic: 'acoes', source: 'Folha - Mercado', url: 'https://feeds.folha.uol.com.br/mercado/rss091.xml' }\n];\n\nreturn feeds.map(feed => ({\n  json: {\n    ...feed,\n    topicsMeta,\n    topicOrder\n  }\n}));\n"
+      },
+      "id": "83ae93b0-2d75-4666-9e06-a902b0a7f511",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {}
+      },
+      "id": "71835867-fe5f-4b52-92d0-6ee1343e96ba",
+      "name": "RSS Feed Read",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Junta cada noticia (vinda do RSS Feed Read) com a config do feed que a\n// originou (node \"Config\"), e aplica o filtro do tema (include/exclude).\n\nconst results = [];\nconst inputItems = $input.all();\n\nfor (let i = 0; i < inputItems.length; i++) {\n  const article = inputItems[i].json;\n  const feedMeta = $('Config').itemMatching(i).json;\n  const topicInfo = feedMeta.topicsMeta[feedMeta.topic];\n\n  const title = (article.title || '').trim();\n  const rawSummary = article.contentSnippet || article.content || article.summary || '';\n  const summary = rawSummary.replace(/<[^>]*>/g, '').trim().slice(0, 300);\n  const link = article.link || article.guid;\n  const pubDate = article.pubDate || article.isoDate || new Date().toISOString();\n\n  if (!title || !link) continue;\n\n  if (topicInfo.filter) {\n    const haystack = (title + ' ' + summary).toLowerCase();\n    const matches = topicInfo.filter.keywords.some(k => haystack.includes(k.toLowerCase()));\n    const passes = topicInfo.filter.mode === 'include' ? matches : !matches;\n    if (!passes) continue;\n  }\n\n  results.push({\n    json: {\n      topic: feedMeta.topic,\n      topicLabel: topicInfo.label,\n      topicOrder: feedMeta.topicOrder,\n      source: feedMeta.source,\n      title,\n      link,\n      summary,\n      pubDate\n    }\n  });\n}\n\nreturn results;\n"
+      },
+      "id": "8587c62e-98a9-457e-b9d5-4b81c5193186",
+      "name": "Classify & Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Remove noticias ja enviadas em execucoes anteriores (usando a memoria\n// estatica do workflow) e ignora noticias fora da janela de tempo definida.\n\nconst HOURS_WINDOW = 30; // margem de seguranca sobre o intervalo do Schedule Trigger\nconst MAX_SEEN_LINKS = 3000; // limite de itens guardados na memoria\n\nconst staticData = $getWorkflowStaticData('global');\nif (!Array.isArray(staticData.seenLinks)) staticData.seenLinks = [];\nconst seen = new Set(staticData.seenLinks);\n\nconst cutoff = Date.now() - HOURS_WINDOW * 60 * 60 * 1000;\nconst fresh = [];\n\nfor (const item of $input.all()) {\n  const { link, pubDate } = item.json;\n  const pubTime = new Date(pubDate).getTime();\n\n  if (seen.has(link)) continue;\n  if (!Number.isNaN(pubTime) && pubTime < cutoff) continue;\n\n  fresh.push(item);\n  seen.add(link);\n}\n\nstaticData.seenLinks = Array.from(seen).slice(-MAX_SEEN_LINKS);\n\nreturn fresh;\n"
+      },
+      "id": "b7dad5c1-3749-47f2-8a22-f0cb576063de",
+      "name": "Dedup & Recency",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all().map(i => i.json);\n\nconst order = items[0]?.topicOrder || ['brasil', 'mundo', 'economia', 'tecnologia', 'acoes'];\n\nconst groups = {};\nfor (const it of items) {\n  if (!groups[it.topic]) groups[it.topic] = { label: it.topicLabel, articles: [] };\n  groups[it.topic].articles.push(it);\n}\n\nconst today = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });\n\nlet html = `\n<div style=\"font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color:#222;\">\n  <h1 style=\"font-size:22px;\">📰 Noticias de hoje - ${today}</h1>\n`;\n\nlet hasNews = false;\n\nfor (const topic of order) {\n  const group = groups[topic];\n  if (!group || group.articles.length === 0) continue;\n  hasNews = true;\n\n  html += `<h2 style=\"font-size:18px; border-bottom:2px solid #eee; padding-bottom:4px;\">${group.label}</h2><ul style=\"padding-left:18px;\">`;\n  for (const a of group.articles) {\n    html += `\n      <li style=\"margin-bottom:14px;\">\n        <a href=\"${a.link}\" style=\"font-weight:bold; text-decoration:none; color:#1a0dab;\">${a.title}</a>\n        <div style=\"font-size:12px; color:#777;\">${a.source}</div>\n        <div style=\"font-size:13px; color:#444;\">${a.summary}</div>\n      </li>`;\n  }\n  html += `</ul>`;\n}\n\nif (!hasNews) {\n  html += `<p>Nenhuma noticia nova encontrada hoje.</p>`;\n}\n\nhtml += `</div>`;\n\nreturn [{\n  json: {\n    html,\n    subject: `📰 Noticias do dia - ${today}`,\n    hasNews\n  }\n}];\n"
+      },
+      "id": "5a1bf020-3ac2-4475-9edf-48b50821c02b",
+      "name": "Group & Build Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        940,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.hasNews }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "4a0932d9-10b8-4dbc-9219-577b1f36ed59",
+      "name": "Has News?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1180,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "SEU_EMAIL_REMETENTE@dominio.com",
+        "toEmail": "nasser.hvictor@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "html",
+        "html": "={{ $json.html }}",
+        "options": {}
+      },
+      "id": "6c7a2e01-7bf0-4725-8ea6-94e9c83e16d1",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1420,
+        220
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "RSS Feed Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Feed Read": {
+      "main": [
+        [
+          {
+            "node": "Classify & Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify & Filter": {
+      "main": [
+        [
+          {
+            "node": "Dedup & Recency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dedup & Recency": {
+      "main": [
+        [
+          {
+            "node": "Group & Build Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Group & Build Email": {
+      "main": [
+        [
+          {
+            "node": "Has News?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has News?": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
