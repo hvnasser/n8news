@@ -1,0 +1,47 @@
+# Fontes de notícias (etapa 1: busca)
+#
+# Cada feed tem:
+#   fonte:     nome que aparece nas notícias
+#   categoria: de onde a notícia veio (brasil, mundo, economia, mercado,
+#              tecnologia). Os TEMAS do e-mail serão montados na próxima etapa
+#              usando essa categoria + palavras-chave.
+#   url:       endereço do feed RSS
+#   ativo:     false para desligar um feed sem apagar (opcional)
+
+config:
+  janela_horas: 24      # só mantém notícias publicadas nas últimas X horas
+  max_por_feed: 30      # limite de notícias lidas por feed
+  timeout_segundos: 15  # tempo máximo de espera por feed
+
+feeds:
+  # ---------- Brasil ----------
+  - { fonte: G1,             categoria: brasil, url: "https://g1.globo.com/rss/g1/" }
+  - { fonte: Folha,          categoria: brasil, url: "https://feeds.folha.uol.com.br/emcimadahora/rss091.xml" }
+  - { fonte: Estadão,        categoria: brasil, url: "https://www.estadao.com.br/arc/outboundfeeds/feeds/rss/sections/politica/" }
+  - { fonte: CNN Brasil,     categoria: brasil, url: "https://www.cnnbrasil.com.br/feed/" }
+  - { fonte: Agência Brasil, categoria: brasil, url: "https://agenciabrasil.ebc.com.br/rss/ultimasnoticias/feed.xml" }
+  - { fonte: Poder360,       categoria: brasil, url: "https://www.poder360.com.br/feed/" }
+
+  # ---------- Mundo ----------
+  - { fonte: BBC News Brasil, categoria: mundo, url: "https://www.bbc.com/portuguese/index.xml" }
+  - { fonte: Folha Mundo,     categoria: mundo, url: "https://feeds.folha.uol.com.br/mundo/rss091.xml" }
+  - { fonte: BBC World,       categoria: mundo, url: "https://feeds.bbci.co.uk/news/world/rss.xml" }
+  - { fonte: The Guardian,    categoria: mundo, url: "https://www.theguardian.com/world/rss" }
+  - { fonte: New York Times,  categoria: mundo, url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml" }
+  - { fonte: Al Jazeera,      categoria: mundo, url: "https://www.aljazeera.com/xml/rss/all.xml" }
+
+  # ---------- Economia ----------
+  - { fonte: G1 Economia,   categoria: economia, url: "https://g1.globo.com/rss/g1/economia/" }
+  - { fonte: Folha Mercado, categoria: economia, url: "https://feeds.folha.uol.com.br/mercado/rss091.xml" }
+  - { fonte: InfoMoney,     categoria: economia, url: "https://www.infomoney.com.br/feed/" }
+  - { fonte: CNBC,          categoria: economia, url: "https://www.cnbc.com/id/100003114/device/rss/rss.html" }
+
+  # ---------- Mercado / Ações ----------
+  - { fonte: InfoMoney Mercados, categoria: mercado, url: "https://www.infomoney.com.br/mercados/feed/" }
+  - { fonte: Money Times,        categoria: mercado, url: "https://www.moneytimes.com.br/feed/" }
+
+  # ---------- Tecnologia ----------
+  - { fonte: G1 Tecnologia, categoria: tecnologia, url: "https://g1.globo.com/rss/g1/tecnologia/" }
+  - { fonte: Tecnoblog,     categoria: tecnologia, url: "https://tecnoblog.net/feed/" }
+  - { fonte: The Verge,     categoria: tecnologia, url: "https://www.theverge.com/rss/index.xml" }
+  - { fonte: TechCrunch,    categoria: tecnologia, url: "https://techcrunch.com/feed/" }

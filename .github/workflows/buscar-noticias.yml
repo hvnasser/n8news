@@ -1,0 +1,28 @@
+name: Buscar notícias
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "n8news/**"
+      - "feeds.yaml"
+      - "tests/**"
+      - ".github/workflows/buscar-noticias.yml"
+
+jobs:
+  buscar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pytest
+      - name: Testes
+        run: python -m pytest -q
+      - name: Buscar notícias
+        run: python -m n8news --json noticias.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: noticias
+          path: noticias.json
