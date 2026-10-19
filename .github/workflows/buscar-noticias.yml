@@ -7,6 +7,7 @@ on:
       - "n8news/**"
       - "feeds.yaml"
       - "temas.yaml"
+      - "paises.yaml"
       - "tests/**"
       - ".github/workflows/buscar-noticias.yml"
 
@@ -22,6 +23,8 @@ jobs:
       - name: Testes
         run: python -m pytest -q
       - name: Buscar notícias
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python -m n8news --json noticias.json
       - uses: actions/upload-artifact@v4
         with:

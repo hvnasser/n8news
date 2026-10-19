@@ -21,10 +21,22 @@
 #               (deixe vazio [] para procurar em todas)
 #   excluir:    notícia com qualquer uma destas palavras sai do tema
 
+# Resumo das notícias com o Claude (precisa da variável ANTHROPIC_API_KEY).
+# Sem a chave, o e-mail usa o trecho original do RSS.
+resumo:
+  ativo: true
+  modelo: claude-opus-5-5
+  esforco: medium              # low | medium | high (mais alto = mais caro)
+  remover_irrelevantes: true   # a IA tira notícias que não são do tema
+
 temas:
   - id: credito
     nome: Crédito
     categorias: [credito, economia, mercado, mundo, brasil]
+    # Países aceitos: grupos do paises.yaml (g10, em) e/ou códigos (ex: VEN).
+    # Notícia que cita SÓ países fora daqui (ex: Gana, Sri Lanka) sai do tema.
+    # Notícia sem país citado (ex: empresa brasileira em RJ) fica.
+    paises_permitidos: [g10, em]
     excluir:
       # Dívida de pessoa física (feirões de renegociação etc).
       # Apague estas linhas se quiser receber esse tipo de notícia.

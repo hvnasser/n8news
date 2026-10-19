@@ -20,6 +20,7 @@ from pathlib import Path
 import yaml
 
 from .busca import Noticia
+from .paises import Pais, detectar, expandir_permitidos
 from .texto import compilar, normalizar, primeira
 
 
@@ -49,6 +50,7 @@ class Tema:
     filtros: list[Filtro]
     categorias: list[str] = field(default_factory=list)  # vazio = todas
     excluir: list[str] = field(default_factory=list)
+    paises_permitidos: list[str] = field(default_factory=list)  # grupos (g10, em) ou códigos; vazio = todos
     ativo: bool = True
 
     def __post_init__(self):
@@ -66,6 +68,9 @@ class Match:
     filtros: list[str]           # nomes dos filtros que casaram
     palavras: list[str]          # palavra que casou em cada filtro
     relacionadas: list[Noticia] = field(default_factory=list)  # mesma história, outros jornais
+    paises: list[str] = field(default_factory=list)  # códigos dos países citados
+    resumo_ia: str = ""  # preenchido pela etapa de resumo
+    relevante: bool = True  # a IA pode marcar como fora do tema
 
 
 @dataclass
@@ -89,7 +94,7 @@ def carregar_temas(caminho: str | Path = "temas.yaml") -> list[Tema]:
 _STOPWORDS = set("""
 a o e de da do das dos em no na nos nas um uma com por para que se ao aos apos sobre
 diz mais seu sua the of and to in on for with by at as is are from after over its
-empresa empresas grupo company companhia report reports
+empresa empresas grupo company companhia report reports ltda inc corp holding holdings
 """.split())
 
 
@@ -153,6 +158,7 @@ def agrupar_parecidas(matches: list[Match], genericas: set[str] = frozenset()) -
             if outro is principal:
                 continue
             principal.relacionadas.append(outro.noticia)
+            principal.paises += [c for c in outro.paises if c not in principal.paises]
             for f, p in zip(outro.filtros, outro.palavras):
                 if f not in principal.filtros:
                     principal.filtros.append(f)
@@ -161,10 +167,12 @@ def agrupar_parecidas(matches: list[Match], genericas: set[str] = frozenset()) -
     return resultado
 
 
-def classificar(noticias: list[Noticia], temas: list[Tema]) -> list[ResultadoTema]:
+def classificar(noticias: list[Noticia], temas: list[Tema], paises: list[Pais] | None = None) -> list[ResultadoTema]:
+    paises = paises or []
     resultados = []
     for tema in temas:
         res = ResultadoTema(tema, [])
+        permitidos = expandir_permitidos(paises, tema.paises_permitidos) if tema.paises_permitidos else set()
         for n in noticias:
             if tema.categorias and not set(n.categorias) & set(tema.categorias):
                 continue
@@ -175,7 +183,12 @@ def classificar(noticias: list[Noticia], temas: list[Tema]) -> list[ResultadoTem
             if bloqueio := primeira(tema._excluir, texto):
                 res.excluidas.append((n, bloqueio))
                 continue
-            res.noticias.append(Match(n, [c[0] for c in casados], [c[1] for c in casados]))
+            citados = [p.codigo for p in detectar(paises, texto)]
+            # Cita países, mas nenhum da lista permitida (ex: só Gana) -> fora
+            if permitidos and citados and not set(citados) & permitidos:
+                res.excluidas.append((n, "país fora da lista: " + ", ".join(citados)))
+                continue
+            res.noticias.append(Match(n, [c[0] for c in casados], [c[1] for c in casados], paises=citados))
         res.noticias = agrupar_parecidas(res.noticias, tema.radicais_genericos())
         resultados.append(res)
     return resultados

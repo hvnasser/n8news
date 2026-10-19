@@ -11,7 +11,8 @@ com link + resumo e filtros por tema (ex: escolher quais ações acompanhar).
 - [x] **2. Temas e filtros**: `temas.yaml` separa as notícias por tema.
       Primeiro tema: **Crédito** (spreads corporativos e soberanos, ratings,
       default, RJ/RE e renegociação de dívida).
-- [ ] 3. Resumo das notícias
+- [x] **3. Resumo das notícias** com o Claude (1–2 frases em português por
+      notícia) + filtro de países (G10 e principais emergentes).
 - [ ] 4. Montar e enviar o e-mail
 - [ ] 5. Agendar (GitHub Actions)
 
@@ -72,6 +73,28 @@ entra no tema se passar em pelo menos um filtro.
 As buscas do Google News (categoria `credito` no `feeds.yaml`) só aceitam
 notícias dos jornais em `google_news_fontes_permitidas`. Se quiser receber
 de um site que está ficando de fora, adicione o nome dele nessa lista.
+
+## Países
+
+`paises.yaml` lista os países em grupos (`g10`, `em`, `outros`). No tema,
+`paises_permitidos: [g10, em]` faz sair a notícia que cita **só** países de
+fora (ex: Gana, Sri Lanka). Notícia que não cita país nenhum continua. Para
+aceitar um país específico, adicione o código (ex: `[g10, em, VEN]`) ou mude
+o grupo dele no `paises.yaml`.
+
+## Resumo com IA
+
+Cada tema vai numa chamada ao Claude, que devolve um resumo de 1–2 frases em
+português por notícia e marca as que não são do tema (que saem do e-mail).
+Configuração no bloco `resumo:` do `temas.yaml`.
+
+Precisa da chave da API da Anthropic:
+- **Local:** `export ANTHROPIC_API_KEY=sk-ant-...`
+- **GitHub Actions:** *Settings → Secrets and variables → Actions → New
+  repository secret*, nome `ANTHROPIC_API_KEY`.
+
+Sem a chave tudo funciona, só que com o trecho original do RSS no lugar do
+resumo. `--sem-resumo` pula essa etapa.
 
 ## O que cada notícia tem
 
