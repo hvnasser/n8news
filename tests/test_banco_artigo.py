@@ -113,3 +113,9 @@ def test_baixar_textos_pula_google_e_erros():
 
     assert baixar_textos([ok, google, fora], baixar_fn=baixar) == 1
     assert "827,4" in ok.texto and google.texto == "" and fora.texto == ""
+
+
+def test_url_com_ou_sem_rest_v1():
+    for url in ["https://abc.supabase.co", "https://abc.supabase.co/", "https://abc.supabase.co/rest/v1",
+                "https://abc.supabase.co/rest/v1/", " https://abc.supabase.co/rest/v1 "]:
+        assert Supabase(url, "k").base == "https://abc.supabase.co/rest/v1"

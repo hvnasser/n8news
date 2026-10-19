@@ -25,7 +25,10 @@ def id_noticia(link: str) -> str:
 
 class Supabase:
     def __init__(self, url: str, chave: str, timeout: float = 30, enviar=None):
-        self.base = url.rstrip("/") + "/rest/v1"
+        # Aceita tanto "https://x.supabase.co" quanto "https://x.supabase.co/rest/v1"
+        url = url.strip().rstrip("/")
+        url = url.removesuffix("/rest/v1").rstrip("/")
+        self.base = url + "/rest/v1"
         self.chave = chave
         self.timeout = timeout
         self._enviar = enviar or self._enviar_http
