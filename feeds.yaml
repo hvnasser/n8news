@@ -12,6 +12,8 @@ config:
   janela_horas: 24      # só mantém notícias publicadas nas últimas X horas
   max_por_feed: 30      # limite de notícias lidas por feed
   timeout_segundos: 15  # tempo máximo de espera por feed
+  ignorar_links_com:    # descarta notícias cujo link contenha algum destes trechos
+    - /patrocinado/     # conteúdo pago (ex: Valor)
 
 feeds:
   # ---------- Brasil ----------
@@ -29,14 +31,21 @@ feeds:
   - { fonte: The Guardian,    categoria: mundo, url: "https://www.theguardian.com/world/rss" }
   - { fonte: New York Times,  categoria: mundo, url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml" }
   - { fonte: Al Jazeera,      categoria: mundo, url: "https://www.aljazeera.com/xml/rss/all.xml" }
+  - { fonte: Financial Times, categoria: mundo, url: "https://www.ft.com/world?format=rss" }
 
   # ---------- Economia ----------
+  - { fonte: Valor Econômico, categoria: economia, url: "https://valor.globo.com/rss/valor/" }
+  - { fonte: Financial Times, categoria: economia, url: "https://www.ft.com/companies?format=rss" }
+  # O WSJ não atualiza mais os feeds RSS oficiais; usamos a busca do Google News
+  # (o link passa pelo Google e abre a matéria no site do WSJ).
+  - { fonte: Wall Street Journal, categoria: economia, url: "https://news.google.com/rss/search?q=site:wsj.com+when:1d&hl=en-US&gl=US&ceid=US:en" }
   - { fonte: G1 Economia,   categoria: economia, url: "https://g1.globo.com/rss/g1/economia/" }
   - { fonte: Folha Mercado, categoria: economia, url: "https://feeds.folha.uol.com.br/mercado/rss091.xml" }
   - { fonte: InfoMoney,     categoria: economia, url: "https://www.infomoney.com.br/feed/" }
   - { fonte: CNBC,          categoria: economia, url: "https://www.cnbc.com/id/100003114/device/rss/rss.html" }
 
   # ---------- Mercado / Ações ----------
+  - { fonte: Financial Times,    categoria: mercado, url: "https://www.ft.com/markets?format=rss" }
   - { fonte: InfoMoney Mercados, categoria: mercado, url: "https://www.infomoney.com.br/mercados/feed/" }
   - { fonte: Money Times,        categoria: mercado, url: "https://www.moneytimes.com.br/feed/" }
 

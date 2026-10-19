@@ -39,7 +39,8 @@ def main(argv=None) -> int:
     print("\n=== STATUS DOS FEEDS ===")
     for s in resultado.status:
         detalhe = s.erro if s.status == "erro" else f"{s.noticias} notícias"
-        print(f"[{s.status.upper():5}] {s.fonte:20} {detalhe}")
+        nome = f"{s.fonte} ({s.categoria})"
+        print(f"[{s.status.upper():5}] {nome:36} {detalhe}")
 
     ok = sum(s.status == "ok" for s in resultado.status)
     print(f"\nTotal: {len(resultado.noticias)} notícias de {ok}/{len(resultado.status)} feeds "

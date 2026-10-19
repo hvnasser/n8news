@@ -38,6 +38,7 @@ class Config:
     janela_horas: float = 24
     max_por_feed: int = 30
     timeout_segundos: float = 15
+    ignorar_links_com: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -161,6 +162,19 @@ def imagem_da_entrada(entrada) -> str | None:
     return None
 
 
+def limpar_google_news(entrada, titulo: str, resumo: str) -> tuple[str, str]:
+    """Feeds do Google News trazem o título como "Manchete - Jornal" e um
+    resumo que só repete a manchete. Remove o sufixo e descarta esse resumo."""
+    origem = limpar_texto((entrada.get("source") or {}).get("title"))
+    if origem and titulo.endswith(f" - {origem}"):
+        titulo = titulo[: -len(origem) - 3].strip()
+    elif " - " in titulo:
+        titulo = titulo.rsplit(" - ", 1)[0].strip()
+    if chave_titulo(resumo).startswith(chave_titulo(titulo)):
+        resumo = ""
+    return titulo, resumo
+
+
 # ---------------------------------------------------------------- busca
 
 def buscar_noticias(config: Config, agora: datetime | None = None, baixar_fn=baixar) -> Resultado:
@@ -184,6 +198,8 @@ def buscar_noticias(config: Config, agora: datetime | None = None, baixar_fn=bai
             link = (entrada.get("link") or "").strip()
             if not titulo or not link:
                 continue
+            if any(trecho in link for trecho in config.ignorar_links_com):
+                continue  # ex: conteúdo patrocinado
 
             data = data_da_entrada(entrada)
             if data and (agora - data).total_seconds() > limite_segundos:
@@ -193,6 +209,8 @@ def buscar_noticias(config: Config, agora: datetime | None = None, baixar_fn=bai
             st.status = "ok"
 
             resumo = cortar(limpar_texto(entrada.get("summary") or entrada.get("description")))
+            if "news.google.com" in link:
+                titulo, resumo = limpar_google_news(entrada, titulo, resumo)
             k_link, k_titulo = chave_link(link), chave_titulo(titulo)
             existente = por_link.get(k_link) or por_titulo.get(k_titulo)
             if existente:

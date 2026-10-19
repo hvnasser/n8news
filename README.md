@@ -35,7 +35,10 @@ Edite `feeds.yaml`:
 - { fonte: TechCrunch, categoria: tecnologia, url: "https://techcrunch.com/feed/" }
 ```
 
-Use `ativo: false` para desligar um feed sem apagar. O final da saída mostra o
+Use `ativo: false` para desligar um feed sem apagar. Para jornais sem RSS
+funcionando (caso do WSJ), dá para usar a busca do Google News como feed:
+`https://news.google.com/rss/search?q=site:wsj.com+when:1d&hl=en-US&gl=US&ceid=US:en`.
+Em `ignorar_links_com` ficam trechos de link a descartar (ex: `/patrocinado/`). O final da saída mostra o
 **status de cada feed** (`OK`, `VAZIO` ou `ERRO`), útil para achar URLs que
 pararam de funcionar.
 

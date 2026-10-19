@@ -135,3 +135,42 @@ def test_carrega_feeds_yaml_do_repo():
     assert len(cfg.feeds) > 10
     assert {f.categoria for f in cfg.feeds} >= {"brasil", "mundo", "economia", "mercado", "tecnologia"}
     assert all(f.url.startswith("https://") for f in cfg.feeds)
+
+
+GOOGLE_NEWS = b"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>site:wsj.com - Google News</title>
+<item>
+  <title>Dollar Could Underperform on AI Jitters - WSJ</title>
+  <link>https://news.google.com/rss/articles/CBMiabc?oc=5</link>
+  <pubDate>Sun, 19 Oct 2026 13:11:00 GMT</pubDate>
+  <description>&lt;a href="https://news.google.com/rss/articles/CBMiabc?oc=5"&gt;Dollar Could Underperform on AI Jitters&lt;/a&gt;&amp;nbsp;&amp;nbsp;&lt;font color="#6f6f6f"&gt;WSJ&lt;/font&gt;</description>
+  <source url="https://www.wsj.com">WSJ</source>
+</item>
+<item>
+  <title>Hackathon de IA - Parte 2 - Valor Economico</title>
+  <link>https://news.google.com/rss/articles/CBMixyz?oc=5</link>
+  <pubDate>Sun, 19 Oct 2026 13:00:00 GMT</pubDate>
+</item>
+</channel></rss>"""
+
+PATROCINADO = b"""<?xml version="1.0"?><rss version="2.0"><channel><title>Valor</title>
+<item><title>Materia paga</title><link>https://valor.globo.com/patrocinado/dino/x.ghtml</link>
+<pubDate>Sun, 19 Oct 2026 13:00:00 GMT</pubDate></item>
+<item><title>Materia normal</title><link>https://valor.globo.com/empresas/y.ghtml</link>
+<pubDate>Sun, 19 Oct 2026 13:00:00 GMT</pubDate></item>
+</channel></rss>"""
+
+
+def test_google_news_limpa_titulo_e_resumo():
+    FEEDS["https://gn/rss"] = GOOGLE_NEWS
+    cfg = Config(feeds=[Feed("WSJ", "economia", "https://gn/rss")])
+    r = buscar_noticias(cfg, agora=AGORA, baixar_fn=fake_baixar)
+    assert [n.titulo for n in r.noticias] == ["Dollar Could Underperform on AI Jitters", "Hackathon de IA - Parte 2"]
+    assert r.noticias[0].resumo == ""
+
+
+def test_ignora_links_patrocinados():
+    FEEDS["https://valor/rss"] = PATROCINADO
+    cfg = Config(feeds=[Feed("Valor", "economia", "https://valor/rss")], ignorar_links_com=["/patrocinado/"])
+    r = buscar_noticias(cfg, agora=AGORA, baixar_fn=fake_baixar)
+    assert [n.titulo for n in r.noticias] == ["Materia normal"]
