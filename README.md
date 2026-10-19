@@ -8,7 +8,9 @@ com link + resumo e filtros por tema (ex: escolher quais ações acompanhar).
 
 - [x] **1. Busca de notícias**: lê os feeds, limpa o texto, descarta notícias
       antigas e junta notícias repetidas entre jornais.
-- [ ] 2. Temas e filtros (ex: tema "Ações" só com as empresas que você escolher)
+- [x] **2. Temas e filtros**: `temas.yaml` separa as notícias por tema.
+      Primeiro tema: **Crédito** (spreads corporativos e soberanos, ratings,
+      default, RJ/RE e renegociação de dívida).
 - [ ] 3. Resumo das notícias
 - [ ] 4. Montar e enviar o e-mail
 - [ ] 5. Agendar (GitHub Actions)
@@ -17,7 +19,8 @@ com link + resumo e filtros por tema (ex: escolher quais ações acompanhar).
 
 ```bash
 pip install -r requirements.txt
-python -m n8news                     # lista as notícias + status de cada feed
+python -m n8news                     # notícias separadas por tema + status dos feeds
+python -m n8news --todas             # todas as notícias, sem filtro de tema
 python -m n8news --horas 6           # só as últimas 6 horas
 python -m n8news --json noticias.json
 python -m n8news --quieto            # só o status dos feeds
@@ -41,6 +44,28 @@ funcionando (caso do WSJ), dá para usar a busca do Google News como feed:
 Em `ignorar_links_com` ficam trechos de link a descartar (ex: `/patrocinado/`). O final da saída mostra o
 **status de cada feed** (`OK`, `VAZIO` ou `ERRO`), útil para achar URLs que
 pararam de funcionar.
+
+## Temas e filtros
+
+Edite `temas.yaml`. Cada tema tem filtros (ex: no tema Crédito: "Spreads
+corporativos", "Default e calote", "Recuperação judicial"...). Uma notícia
+entra no tema se passar em pelo menos um filtro.
+
+```yaml
+- nome: Recuperação judicial e extrajudicial
+  ativo: true            # false desliga o filtro
+  palavras:              # basta uma aparecer no título ou resumo
+    - recuperação judicial
+    - Chapter 11
+  exige: []              # opcional: além disso, uma destas tem que aparecer
+```
+
+- **Adicionar/remover** um assunto: inclua ou apague linhas em `palavras`.
+- `*` aceita qualquer final (`renegoci*` pega renegociação, renegociar...).
+- Acentos, maiúsculas e hífens não importam.
+- `excluir` (no tema) tira notícias com aquelas palavras (ex: Serasa).
+- A saída mostra, em cada notícia, qual filtro e palavra a fizeram entrar,
+  para facilitar ajustes.
 
 ## O que cada notícia tem
 

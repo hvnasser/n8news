@@ -6,6 +6,7 @@ on:
     paths:
       - "n8news/**"
       - "feeds.yaml"
+      - "temas.yaml"
       - "tests/**"
       - ".github/workflows/buscar-noticias.yml"
 

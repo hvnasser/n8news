@@ -1,0 +1,207 @@
+# Temas do e-mail e seus filtros
+#
+# Cada tema tem FILTROS. Uma notícia entra no tema se passar em pelo menos um
+# filtro ativo. Para ligar/desligar um filtro, use `ativo: true/false`.
+#
+# Em cada filtro:
+#   palavras: basta UMA aparecer no título ou resumo para a notícia passar
+#   exige:    (opcional) além disso, pelo menos UMA destas também precisa
+#             aparecer. Serve para palavras ambíguas, ex: "spread" sozinho
+#             pega "spread of the virus"; exigindo "bond" ou "crédito" junto,
+#             só passa notícia de mercado.
+#
+# Regras das palavras:
+#   - maiúsculas, acentos e hífens não importam ("risco-país" = "risco pais")
+#   - a palavra tem que aparecer inteira: "default" não pega "defaulted"
+#   - use * para aceitar qualquer final: "renegoci*" pega renegociação,
+#     renegociar, renegociou...
+#
+# No tema:
+#   categorias: só procura em notícias dessas categorias do feeds.yaml
+#               (deixe vazio [] para procurar em todas)
+#   excluir:    notícia com qualquer uma destas palavras sai do tema
+
+temas:
+  - id: credito
+    nome: Crédito
+    categorias: [credito, economia, mercado, mundo, brasil]
+    excluir:
+      # Dívida de pessoa física (feirões de renegociação, Serasa etc).
+      # Apague estas linhas se quiser receber esse tipo de notícia.
+      - Serasa
+      - Limpa Nome
+      - Desenrola
+      - nome sujo
+      - S&P 500
+
+    filtros:
+      - nome: Spreads corporativos
+        palavras:
+          - spread*
+          - prêmio de risco
+          - high yield
+          - junk bond*
+          - investment grade
+          - grau especulativo
+          - credit market*
+          - mercado de crédito
+          - crédito privado
+          - private credit
+          - leveraged loan*
+          - debênture*
+          - corporate bond*
+          - bond spread*
+          - CRI
+          - CRA
+          - FIDC*
+        exige:  # só passa se também falar de crédito/títulos
+          - crédito
+          - credit
+          - bond*
+          - debênture*
+          - título*
+          - emissão
+          - emissões
+          - high yield
+          - junk
+          - investment grade
+          - private credit
+          - crédito privado
+          - leveraged
+          - CRI
+          - CRA
+          - FIDC*
+          - CDI
+          - IPCA
+
+      - nome: Spreads soberanos e risco-país
+        palavras:
+          - risco país
+          - CDS
+          - credit default swap*
+          - EMBI
+          - spread soberano
+          - sovereign spread*
+          - sovereign debt
+          - sovereign bond*
+          - dívida soberana
+          - título* soberano*
+          - eurobond*
+          - Treasury yield*
+          - bond yield*
+          - gilt*
+          - Bund
+          - Bunds
+          - BTP
+          - OAT
+          - JGB*
+          - bond market*
+          - bond vigilantes
+          - dívida pública
+          - debt ceiling
+          - teto da dívida
+
+      - nome: Ratings
+        palavras:
+          - rating*
+          - Moody's
+          - Fitch
+          - S&P Global Ratings
+          - agência de classificação
+          - agências de classificação
+          - grau de investimento
+          - nota de crédito
+          - downgrade*
+          - upgrade*
+          - rebaix*
+          - perspectiva negativa
+          - outlook negativo
+          - negative outlook
+          - credit rating*
+        exige:
+          - rating*
+          - Moody's
+          - Fitch
+          - S&P
+          - grau de investimento
+          - nota de crédito
+          - nota soberana
+          - credit
+          - crédito
+          - classificação de risco
+
+      - nome: Default e calote
+        palavras:
+          - default*
+          - calote*
+          - inadimplente
+          - deixou de pagar
+          - deixa de pagar
+          - não pagou
+          - missed payment*
+          - missed coupon
+          - skipped payment
+          - cross default
+          - vencimento antecipado
+          - falência
+          - falências
+          - bankruptcy
+          - bankrupt
+          - insolvência
+          - insolvency
+          - liquidação extrajudicial
+          - waiver
+
+      - nome: Recuperação judicial e extrajudicial
+        palavras:
+          - recuperação judicial
+          - recuperação extrajudicial
+          - pedido de RJ
+          - em RJ
+          - plano de recuperação
+          - Chapter 11
+          - Chapter 15
+          - Chapter 7
+          - administração judicial
+          - administrador judicial
+          - credores
+          - creditors
+
+      - nome: Renegociação e reestruturação de dívida
+        palavras:
+          - renegoci*
+          - reestruturação de dívida*
+          - reestruturação da dívida
+          - reestruturação financeira
+          - reestruturar dívida*
+          - reestruturar a dívida
+          - reperfilamento
+          - alongamento de dívida*
+          - debt restructuring
+          - restructuring support agreement
+          - restructure* debt
+          - debt relief
+          - debt swap
+          - debt exchange
+          - exchange offer
+          - liability management
+          - haircut
+          - standstill
+          - Clube de Paris
+          - Paris Club
+          - Common Framework
+        exige:
+          - dívida*
+          - debt
+          - credor*
+          - creditor*
+          - bond*
+          - título*
+          - empréstimo*
+          - loan*
+          - financ*
+          - haircut
+          - standstill
+          - Clube de Paris
+          - Paris Club
+          - Common Framework

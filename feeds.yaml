@@ -49,6 +49,16 @@ feeds:
   - { fonte: InfoMoney Mercados, categoria: mercado, url: "https://www.infomoney.com.br/mercados/feed/" }
   - { fonte: Money Times,        categoria: mercado, url: "https://www.moneytimes.com.br/feed/" }
 
+  # ---------- Crédito (buscas focadas; usadas pelo tema Crédito) ----------
+  # Buscas do Google News: o link passa pelo Google e abre a matéria no site original.
+  - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22recupera%C3%A7%C3%A3o+judicial%22+OR+%22recupera%C3%A7%C3%A3o+extrajudicial%22+OR+%22pedido+de+fal%C3%AAncia%22+when%3A1d&hl=pt-BR&gl=BR&ceid=BR:pt-419" }
+  - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22risco-pa%C3%ADs%22+OR+%22CDS%22+OR+%22deb%C3%AAntures%22+OR+%22cr%C3%A9dito+privado%22+OR+%22spreads+de+cr%C3%A9dito%22+when%3A1d&hl=pt-BR&gl=BR&ceid=BR:pt-419" }
+  - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=calote+OR+inadimpl%C3%AAncia+OR+%22renegocia%C3%A7%C3%A3o+de+d%C3%ADvida%22+OR+%22reestrutura%C3%A7%C3%A3o+de+d%C3%ADvida%22+empresa+when%3A1d&hl=pt-BR&gl=BR&ceid=BR:pt-419" }
+  - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22credit+spreads%22+OR+%22high+yield%22+OR+%22junk+bonds%22+OR+%22private+credit%22+OR+%22leveraged+loans%22+when%3A1d&hl=en-US&gl=US&ceid=US:en" }
+  - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22debt+restructuring%22+OR+%22sovereign+default%22+OR+%22Chapter+11%22+OR+%22sovereign+debt%22+OR+%22bond+default%22+when%3A1d&hl=en-US&gl=US&ceid=US:en" }
+  - { fonte: Brazil Journal,  categoria: credito, url: "https://braziljournal.com/feed/" }
+  - { fonte: Bloomberg Línea, categoria: credito, url: "https://www.bloomberglinea.com.br/arc/outboundfeeds/rss/?outputType=xml" }
+
   # ---------- Tecnologia ----------
   - { fonte: G1 Tecnologia, categoria: tecnologia, url: "https://g1.globo.com/rss/g1/tecnologia/" }
   - { fonte: Tecnoblog,     categoria: tecnologia, url: "https://tecnoblog.net/feed/" }

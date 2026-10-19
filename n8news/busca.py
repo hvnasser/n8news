@@ -162,9 +162,10 @@ def imagem_da_entrada(entrada) -> str | None:
     return None
 
 
-def limpar_google_news(entrada, titulo: str, resumo: str) -> tuple[str, str]:
+def limpar_google_news(entrada, titulo: str, resumo: str) -> tuple[str, str, str]:
     """Feeds do Google News trazem o título como "Manchete - Jornal" e um
-    resumo que só repete a manchete. Remove o sufixo e descarta esse resumo."""
+    resumo que só repete a manchete. Remove o sufixo, descarta esse resumo e
+    devolve o nome do jornal de origem."""
     origem = limpar_texto((entrada.get("source") or {}).get("title"))
     if origem and titulo.endswith(f" - {origem}"):
         titulo = titulo[: -len(origem) - 3].strip()
@@ -172,7 +173,7 @@ def limpar_google_news(entrada, titulo: str, resumo: str) -> tuple[str, str]:
         titulo = titulo.rsplit(" - ", 1)[0].strip()
     if chave_titulo(resumo).startswith(chave_titulo(titulo)):
         resumo = ""
-    return titulo, resumo
+    return titulo, resumo, origem
 
 
 # ---------------------------------------------------------------- busca
@@ -209,16 +210,19 @@ def buscar_noticias(config: Config, agora: datetime | None = None, baixar_fn=bai
             st.status = "ok"
 
             resumo = cortar(limpar_texto(entrada.get("summary") or entrada.get("description")))
+            fonte = feed.fonte
             if "news.google.com" in link:
-                titulo, resumo = limpar_google_news(entrada, titulo, resumo)
+                titulo, resumo, origem = limpar_google_news(entrada, titulo, resumo)
+                if feed.fonte == "Google News" and origem:
+                    fonte = origem  # busca genérica: mostra o jornal de verdade
             k_link, k_titulo = chave_link(link), chave_titulo(titulo)
             existente = por_link.get(k_link) or por_titulo.get(k_titulo)
             if existente:
                 # Mesma notícia em outro feed: só registra a fonte/categoria extra
                 if feed.categoria not in existente.categorias:
                     existente.categorias.append(feed.categoria)
-                if feed.fonte not in existente.fontes:
-                    existente.fontes.append(feed.fonte)
+                if fonte not in existente.fontes:
+                    existente.fontes.append(fonte)
                 if not existente.resumo:
                     existente.resumo = resumo
                 continue
@@ -227,10 +231,10 @@ def buscar_noticias(config: Config, agora: datetime | None = None, baixar_fn=bai
                 titulo=titulo,
                 link=link,
                 resumo=resumo,
-                fonte=feed.fonte,
+                fonte=fonte,
                 categoria=feed.categoria,
                 publicado_em=data,
-                fontes=[feed.fonte],
+                fontes=[fonte],
                 categorias=[feed.categoria],
                 imagem=imagem_da_entrada(entrada),
             )
