@@ -14,39 +14,13 @@ Regras das palavras-chave (ver temas.yaml):
 from __future__ import annotations
 
 import re
-import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
 
 from .busca import Noticia
-
-
-def normalizar(texto: str) -> str:
-    texto = unicodedata.normalize("NFD", texto.lower())
-    texto = "".join(c for c in texto if unicodedata.category(c) != "Mn")
-    texto = re.sub(r"['’`´]", "", texto)
-    texto = re.sub(r"[^a-z0-9*]+", " ", texto)
-    return f" {texto.strip()} "
-
-
-def compilar(palavras: list[str]) -> list[tuple[str, re.Pattern]]:
-    padroes = []
-    for p in palavras:
-        norm = normalizar(str(p)).strip()
-        if not norm:
-            continue
-        regex = r"\b" + re.escape(norm).replace(r"\*", r"\w*") + r"\b"
-        padroes.append((str(p), re.compile(regex)))
-    return padroes
-
-
-def primeira(padroes, texto: str) -> str | None:
-    for original, regex in padroes:
-        if regex.search(texto):
-            return original
-    return None
+from .texto import compilar, normalizar, primeira
 
 
 @dataclass
@@ -80,12 +54,18 @@ class Tema:
     def __post_init__(self):
         self._excluir = compilar(self.excluir)
 
+    def radicais_genericos(self) -> set[str]:
+        """Radicais das palavras-chave do tema (comuns a muitas notícias)."""
+        termos = " ".join(p for f in self.filtros for p in f.palavras + f.exige)
+        return _radicais(termos.replace("*", ""))
+
 
 @dataclass
 class Match:
     noticia: Noticia
     filtros: list[str]           # nomes dos filtros que casaram
     palavras: list[str]          # palavra que casou em cada filtro
+    relacionadas: list[Noticia] = field(default_factory=list)  # mesma história, outros jornais
 
 
 @dataclass
@@ -106,6 +86,81 @@ def carregar_temas(caminho: str | Path = "temas.yaml") -> list[Tema]:
     return temas
 
 
+_STOPWORDS = set("""
+a o e de da do das dos em no na nos nas um uma com por para que se ao aos apos sobre
+diz mais seu sua the of and to in on for with by at as is are from after over its
+empresa empresas grupo company companhia report reports
+""".split())
+
+
+def _radicais(texto: str) -> set[str]:
+    """Palavras do texto reduzidas aos 5 primeiros caracteres
+    (pede/pediu/pedido -> pede/pediu/pedid; recuperação -> recup)."""
+    return {
+        w[:5]
+        for w in normalizar(texto).split()
+        if (len(w) >= 3 or w.isdigit()) and w not in _STOPWORDS
+    }
+
+
+def _nomes_proprios(titulo: str) -> set[str]:
+    """Radicais de palavras com maiúscula ou números: nomes de empresas,
+    países, valores (Ri Happy, Barclays, 827)."""
+    palavras = [w for w in re.split(r"[^\w$]+", titulo) if w]
+    return _radicais(" ".join(w for w in palavras if w[0].isupper() or w[0].isdigit()))
+
+
+def _parecidas(a: tuple[set[str], set[str]], b: tuple[set[str], set[str]], genericas: set[str]) -> bool:
+    (rad_a, nomes_a), (rad_b, nomes_b) = a, b
+    comum = rad_a & rad_b
+    if len(comum) < 3 or len(comum) / min(len(rad_a), len(rad_b)) < 0.5:
+        return False
+    # Precisa de um nome próprio/número em comum, senão "A pede recuperação
+    # judicial" juntaria com "B pede recuperação judicial"
+    return bool((comum & (nomes_a | nomes_b)) - genericas)
+
+
+def _qualidade(n: Noticia) -> tuple:
+    # Prefere link direto do jornal (não Google News), com resumo e mais fontes
+    return ("news.google.com" not in n.link, bool(n.resumo), len(n.fontes))
+
+
+def agrupar_parecidas(matches: list[Match], genericas: set[str] = frozenset()) -> list[Match]:
+    """Junta notícias sobre o mesmo fato com títulos diferentes
+    (ex: 8 jornais noticiando a mesma recuperação judicial).
+    `genericas`: radicais comuns no tema (ex: recup, judic) que sozinhos não
+    bastam para dizer que é a mesma notícia."""
+    grupos: list[tuple[list, list[Match]]] = []
+    for m in matches:
+        palavras = (_radicais(m.noticia.titulo), _nomes_proprios(m.noticia.titulo))
+        iguais = [g for g in grupos if any(_parecidas(palavras, c, genericas) for c in g[0])]
+        if not iguais:
+            grupos.append(([palavras], [m]))
+            continue
+        # Se parece com mais de um grupo, junta todos num só
+        chaves, membros = iguais[0]
+        for outro in iguais[1:]:
+            chaves.extend(outro[0])
+            membros.extend(outro[1])
+            grupos.remove(outro)
+        chaves.append(palavras)
+        membros.append(m)
+
+    resultado = []
+    for _, membros in grupos:
+        principal = max(membros, key=lambda m: _qualidade(m.noticia))
+        for outro in membros:
+            if outro is principal:
+                continue
+            principal.relacionadas.append(outro.noticia)
+            for f, p in zip(outro.filtros, outro.palavras):
+                if f not in principal.filtros:
+                    principal.filtros.append(f)
+                    principal.palavras.append(p)
+        resultado.append(principal)
+    return resultado
+
+
 def classificar(noticias: list[Noticia], temas: list[Tema]) -> list[ResultadoTema]:
     resultados = []
     for tema in temas:
@@ -121,5 +176,6 @@ def classificar(noticias: list[Noticia], temas: list[Tema]) -> list[ResultadoTem
                 res.excluidas.append((n, bloqueio))
                 continue
             res.noticias.append(Match(n, [c[0] for c in casados], [c[1] for c in casados]))
+        res.noticias = agrupar_parecidas(res.noticias, tema.radicais_genericos())
         resultados.append(res)
     return resultados

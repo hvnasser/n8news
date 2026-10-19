@@ -26,13 +26,27 @@ temas:
     nome: Crédito
     categorias: [credito, economia, mercado, mundo, brasil]
     excluir:
-      # Dívida de pessoa física (feirões de renegociação, Serasa etc).
+      # Dívida de pessoa física (feirões de renegociação etc).
       # Apague estas linhas se quiser receber esse tipo de notícia.
-      - Serasa
+      - Feirão
       - Limpa Nome
       - Desenrola
       - nome sujo
+      # Finanças pessoais e ações (não são crédito corporativo/soberano)
       - S&P 500
+      - savings
+      - APY
+      - CD rates
+      - dividend stock*
+      - high yield stock*
+      - high yield dividend*
+      - put credit spread*
+      - call credit spread*
+      - price target*
+      - buy rating
+      - sell rating
+      - hold rating
+      - CDS PP
 
     filtros:
       - nome: Spreads corporativos
@@ -77,7 +91,11 @@ temas:
       - nome: Spreads soberanos e risco-país
         palavras:
           - risco país
-          - CDS
+          - CDS de
+          - CDS do Brasil
+          - CDS soberano
+          - CDS spread*
+          - CDS 5 anos
           - credit default swap*
           - EMBI
           - spread soberano
@@ -104,31 +122,34 @@ temas:
       - nome: Ratings
         palavras:
           - rating*
-          - Moody's
-          - Fitch
-          - S&P Global Ratings
-          - agência de classificação
-          - agências de classificação
           - grau de investimento
           - nota de crédito
+          - nota soberana
           - downgrade*
           - upgrade*
           - rebaix*
           - perspectiva negativa
+          - perspectiva positiva
           - outlook negativo
           - negative outlook
-          - credit rating*
-        exige:
-          - rating*
+          - positive outlook
+        exige:  # só ratings de crédito (agências), não recomendação de ação
           - Moody's
           - Fitch
-          - S&P
+          - S&P Global
+          - Standard & Poor's
+          - agência de classificação
+          - agências de classificação
+          - agência de rating
+          - agências de rating
+          - classificação de risco
           - grau de investimento
           - nota de crédito
           - nota soberana
-          - credit
-          - crédito
-          - classificação de risco
+          - credit rating*
+          - sovereign rating*
+          - investment grade
+          - junk
 
       - nome: Default e calote
         palavras:
@@ -150,7 +171,6 @@ temas:
           - insolvência
           - insolvency
           - liquidação extrajudicial
-          - waiver
 
       - nome: Recuperação judicial e extrajudicial
         palavras:

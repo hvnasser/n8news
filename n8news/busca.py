@@ -20,6 +20,8 @@ from urllib.parse import parse_qsl, urlencode, urlsplit
 import feedparser
 import yaml
 
+from .texto import compilar, normalizar, primeira
+
 USER_AGENT = "Mozilla/5.0 (compatible; n8news/1.0; +https://github.com/hvnasser/n8news)"
 TAMANHO_RESUMO = 400
 
@@ -39,6 +41,7 @@ class Config:
     max_por_feed: int = 30
     timeout_segundos: float = 15
     ignorar_links_com: list[str] = field(default_factory=list)
+    google_news_fontes_permitidas: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -67,6 +70,7 @@ class StatusFeed:
     status: str  # "ok", "vazio" ou "erro"
     noticias: int = 0
     erro: str = ""
+    descartadas: int = 0  # Google News: de jornais fora da lista permitida
 
 
 @dataclass
@@ -180,6 +184,7 @@ def limpar_google_news(entrada, titulo: str, resumo: str) -> tuple[str, str, str
 
 def buscar_noticias(config: Config, agora: datetime | None = None, baixar_fn=baixar) -> Resultado:
     agora = agora or datetime.now(timezone.utc)
+    permitidas = compilar(config.google_news_fontes_permitidas)
     limite_segundos = config.janela_horas * 3600
 
     with ThreadPoolExecutor(max_workers=8) as pool:
@@ -207,12 +212,15 @@ def buscar_noticias(config: Config, agora: datetime | None = None, baixar_fn=bai
                 continue  # notícia antiga (sem data: mantém)
 
             st.noticias += 1
-            st.status = "ok"
 
             resumo = cortar(limpar_texto(entrada.get("summary") or entrada.get("description")))
             fonte = feed.fonte
             if "news.google.com" in link:
                 titulo, resumo, origem = limpar_google_news(entrada, titulo, resumo)
+                if permitidas and origem and not primeira(permitidas, normalizar(origem)):
+                    st.descartadas += 1
+                    st.noticias -= 1
+                    continue  # jornal fora da lista de fontes confiáveis
                 if feed.fonte == "Google News" and origem:
                     fonte = origem  # busca genérica: mostra o jornal de verdade
             k_link, k_titulo = chave_link(link), chave_titulo(titulo)
@@ -241,6 +249,10 @@ def buscar_noticias(config: Config, agora: datetime | None = None, baixar_fn=bai
             por_link[k_link] = n
             por_titulo[k_titulo] = n
             noticias.append(n)
+
+    for st in status:
+        if st.noticias and not st.erro:
+            st.status = "ok"
 
     # Mais recentes primeiro; sem data vão para o fim
     vazio = datetime.min.replace(tzinfo=timezone.utc)

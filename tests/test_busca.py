@@ -174,3 +174,17 @@ def test_ignora_links_patrocinados():
     cfg = Config(feeds=[Feed("Valor", "economia", "https://valor/rss")], ignorar_links_com=["/patrocinado/"])
     r = buscar_noticias(cfg, agora=AGORA, baixar_fn=fake_baixar)
     assert [n.titulo for n in r.noticias] == ["Materia normal"]
+
+
+def test_google_news_so_aceita_fontes_permitidas():
+    FEEDS["https://gn2/rss"] = b"""<?xml version="1.0"?><rss version="2.0"><channel><title>GN</title>
+<item><title>Ri Happy pede RE - Valor Investe</title><link>https://news.google.com/a</link>
+<pubDate>Sun, 19 Oct 2026 13:00:00 GMT</pubDate><source url="https://valor.globo.com">Valor Investe</source></item>
+<item><title>Ri Happy files - Stock Titan</title><link>https://news.google.com/b</link>
+<pubDate>Sun, 19 Oct 2026 13:00:00 GMT</pubDate><source url="https://x.com">Stock Titan</source></item>
+</channel></rss>"""
+    cfg = Config(feeds=[Feed("Google News", "credito", "https://gn2/rss")],
+                 google_news_fontes_permitidas=["Valor", "Reuters"])
+    r = buscar_noticias(cfg, agora=AGORA, baixar_fn=fake_baixar)
+    assert [(n.titulo, n.fonte) for n in r.noticias] == [("Ri Happy pede RE", "Valor Investe")]
+    assert r.status[0].noticias == 1 and r.status[0].descartadas == 1

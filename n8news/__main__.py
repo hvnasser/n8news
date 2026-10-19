@@ -49,7 +49,11 @@ def imprimir_temas(resultados) -> None:
             print(f"\n--- {filtro.nome} ({len(lista)}) ---")
             for m in lista:
                 motivo = "; ".join(f"{f}: {p}" for f, p in zip(m.filtros, m.palavras))
-                imprimir_noticia(m.noticia, f"\n  ↳ {motivo}")
+                outras = sorted({f for r in m.relacionadas for f in r.fontes} - set(m.noticia.fontes))
+                extra = f"\n  ↳ {motivo}"
+                if outras:
+                    extra += f"\n  ↳ também em: {', '.join(outras)}"
+                imprimir_noticia(m.noticia, extra)
         if res.excluidas:
             print(f"\n--- Excluídas pelo filtro 'excluir' ({len(res.excluidas)}) ---")
             for n, palavra in res.excluidas:
@@ -83,6 +87,8 @@ def main(argv=None) -> int:
     print("\n=== STATUS DOS FEEDS ===")
     for s in resultado.status:
         detalhe = s.erro if s.status == "erro" else f"{s.noticias} notícias"
+        if s.descartadas:
+            detalhe += f" ({s.descartadas} de fontes fora da lista)"
         nome = f"{s.fonte} ({s.categoria})"
         print(f"[{s.status.upper():5}] {nome:36} {detalhe}")
 
@@ -100,7 +106,8 @@ def main(argv=None) -> int:
                     "id": r.tema.id,
                     "nome": r.tema.nome,
                     "noticias": [
-                        {**m.noticia.to_dict(), "filtros": m.filtros, "palavras": m.palavras}
+                        {**m.noticia.to_dict(), "filtros": m.filtros, "palavras": m.palavras,
+                         "relacionadas": [r.to_dict() for r in m.relacionadas]}
                         for m in r.noticias
                     ],
                 }

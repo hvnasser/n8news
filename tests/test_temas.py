@@ -29,6 +29,7 @@ def filtros_que_casam(tema, titulo, resumo="", categoria="economia"):
     ("Gilts sell off as UK borrowing costs jump", "Spreads soberanos e risco-país"),
     ("Moody's rebaixa nota de crédito da Colômbia", "Ratings"),
     ("Fitch downgrades France's credit rating to A+", "Ratings"),
+    ("Pedidos de recuperação judicial no agro caem 20,7%, diz Serasa", "Recuperação judicial e extrajudicial"),
     ("Empresa X entra com pedido de recuperação judicial", "Recuperação judicial e extrajudicial"),
     ("Retailer files for Chapter 11 bankruptcy protection", "Default e calote"),
     ("Argentina deixou de pagar cupom de bônus", "Default e calote"),
@@ -48,6 +49,12 @@ def test_entra_no_tema(credito, titulo, filtro):
     ("S&P 500 fecha em alta com balanços", "mercado"),
     ("Petrobras anuncia dividendos", "economia"),
     ("Empresa entra em recuperação judicial", "tecnologia"),  # categoria fora do tema
+    ("CDS-PP apresenta voto de pesar", "mundo"),
+    ("Mercado Livre chega a três mega CDs no Rio Grande do Sul", "credito"),
+    ("Best high-yield savings interest rates today: Earn up to 4.3% APY", "credito"),
+    ("5 High-Yield Stocks to Buy Now Before Your Retirement Starts", "credito"),
+    ("EchoStar gains Speculative Buy rating on $20B deal", "credito"),
+    ("Oil prices fall as traders weigh Russia sanctions waiver", "economia"),
 ])
 def test_nao_entra_no_tema(credito, titulo, categoria):
     assert filtros_que_casam(credito, titulo, categoria=categoria) == []
@@ -88,3 +95,36 @@ def test_excluidas_ficam_registradas():
     tema = Tema("c", "C", [Filtro("d", ["dívida*"])], excluir=["Serasa"])
     res = classificar([noticia("Serasa ajuda a renegociar dívidas")], [tema])[0]
     assert res.noticias == [] and res.excluidas[0][1] == "Serasa"
+
+
+def test_agrupa_mesma_noticia_de_jornais_diferentes(credito):
+    titulos = [
+        ("Ri Happy solicita recuperação extrajudicial com dívida de R$ 827,4 milhões", "Folha de Curitiba"),
+        ("Grupo Ri Happy entra com pedido de recuperação extrajudicial", "Estadão"),
+        ("Ri Happy pede recuperação extrajudicial 48 dias após mudar de dono", "Exame"),
+        ("Empresa Alfa entra com pedido de recuperação judicial", "Valor"),
+        ("Beta entra com pedido de recuperação judicial", "Valor"),
+        ("BoE scrutinises Barclays over claim traders misrepresented private credit exposure", "FT"),
+        ("Bank of England probes Barclays over private credit loans - report", "Reuters"),
+        ("BoE probes Barclays’ handling of private credit risks, FT reports", "Yahoo"),
+        ("Localiza aprova emissão de R$ 1 bilhão em debêntures", "UOL"),
+        ("Localiza (RENT3) capta R$ 1 bi em debêntures com vencimento em 24 meses", "Visno"),
+        ("Valid aprova emissão de R$ 200 milhões em debêntures, com prazo de cinco anos", "ADVFN"),
+    ]
+    noticias = []
+    for t, fonte in titulos:
+        n = noticia(t)
+        n.fontes = [fonte]
+        noticias.append(n)
+    noticias[1].resumo = "O grupo pediu..."  # a com resumo vira a principal
+    res = classificar(noticias, [credito])[0]
+    grupos = sorted(sorted([m.noticia.fontes[0]] + [r.fontes[0] for r in m.relacionadas]) for m in res.noticias)
+    assert grupos == sorted([
+        ["Estadão", "Exame", "Folha de Curitiba"],
+        ["Valor"], ["Valor"],
+        ["FT", "Reuters", "Yahoo"],
+        ["UOL", "Visno"],
+        ["ADVFN"],
+    ])
+    ri = next(m for m in res.noticias if "Happy" in m.noticia.titulo)
+    assert ri.noticia.fontes == ["Estadão"]

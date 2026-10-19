@@ -15,6 +15,66 @@ config:
   ignorar_links_com:    # descarta notícias cujo link contenha algum destes trechos
     - /patrocinado/     # conteúdo pago (ex: Valor)
 
+  # As buscas do Google News trazem notícias de qualquer site. Só ficam as dos
+  # jornais desta lista (basta o nome aparecer no nome da fonte: "Valor"
+  # aceita "Valor Econômico" e "Valor Investe"). Lista vazia = aceita todos.
+  google_news_fontes_permitidas:
+    # Brasil
+    - Valor
+    - Estadão
+    - Folha
+    - G1
+    - O Globo
+    - Exame
+    - InfoMoney
+    - CNN Brasil
+    - NeoFeed
+    - Brazil Journal
+    - Pipeline
+    - Bloomberg Línea
+    - UOL
+    - Money Times
+    - Seu Dinheiro
+    - E-Investidor
+    - Times Brasil
+    - Veja
+    - Poder360
+    - Agência Brasil
+    - Investing.com
+    # Internacional
+    - Reuters
+    - Bloomberg
+    - Financial Times
+    - FT
+    - WSJ
+    - Wall Street Journal
+    - Barron's
+    - MarketWatch
+    - CNBC
+    - The Economist
+    - New York Times
+    - Washington Post
+    - Associated Press
+    - AP News
+    - Axios
+    - BBC
+    - Guardian
+    - Nikkei
+    - Le Monde
+    - Les Echos
+    - Handelsblatt
+    - El País
+    - Clarín
+    - La Nación
+    - Ámbito
+    - Infobae
+    - IFR
+    - GlobalCapital
+    - PitchBook
+    - Private Debt Investor
+    - Creditflux
+    - Alternative Credit Investor
+
 feeds:
   # ---------- Brasil ----------
   - { fonte: G1,             categoria: brasil, url: "https://g1.globo.com/rss/g1/" }
@@ -56,7 +116,8 @@ feeds:
   - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=calote+OR+inadimpl%C3%AAncia+OR+%22renegocia%C3%A7%C3%A3o+de+d%C3%ADvida%22+OR+%22reestrutura%C3%A7%C3%A3o+de+d%C3%ADvida%22+empresa+when%3A1d&hl=pt-BR&gl=BR&ceid=BR:pt-419" }
   - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22credit+spreads%22+OR+%22high+yield%22+OR+%22junk+bonds%22+OR+%22private+credit%22+OR+%22leveraged+loans%22+when%3A1d&hl=en-US&gl=US&ceid=US:en" }
   - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22debt+restructuring%22+OR+%22sovereign+default%22+OR+%22Chapter+11%22+OR+%22sovereign+debt%22+OR+%22bond+default%22+when%3A1d&hl=en-US&gl=US&ceid=US:en" }
-  - { fonte: Brazil Journal,  categoria: credito, url: "https://braziljournal.com/feed/" }
+  # Brazil Journal: o feed responde, mas sem notícias recentes (out/2026)
+  - { fonte: Brazil Journal,  categoria: credito, url: "https://braziljournal.com/feed/", ativo: false }
   - { fonte: Bloomberg Línea, categoria: credito, url: "https://www.bloomberglinea.com.br/arc/outboundfeeds/rss/?outputType=xml" }
 
   # ---------- Tecnologia ----------
