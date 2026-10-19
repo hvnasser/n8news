@@ -55,6 +55,7 @@ class Noticia:
     fontes: list[str] = field(default_factory=list)
     categorias: list[str] = field(default_factory=list)
     imagem: str | None = None
+    texto: str = ""  # texto extraído da página (etapa de artigo)
 
     def to_dict(self) -> dict:
         d = self.__dict__.copy()

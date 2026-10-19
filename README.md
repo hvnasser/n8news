@@ -13,6 +13,8 @@ com link + resumo e filtros por tema (ex: escolher quais ações acompanhar).
       default, RJ/RE e renegociação de dívida).
 - [x] **3. Resumo das notícias** com o Claude (1–2 frases em português por
       notícia) + filtro de países (G10 e principais emergentes).
+- [x] **Banco de dados (Supabase)**: guarda cada notícia com data, texto,
+      resumo, link e tema, para consultar depois.
 - [ ] 4. Montar e enviar o e-mail
 - [ ] 5. Agendar (GitHub Actions)
 
@@ -94,7 +96,44 @@ Precisa da chave da API da Anthropic:
   repository secret*, nome `ANTHROPIC_API_KEY`.
 
 Sem a chave tudo funciona, só que com o trecho original do RSS no lugar do
-resumo. `--sem-resumo` pula essa etapa.
+resumo. `--sem-resumo` pula essa etapa; `--sem-texto` não baixa as matérias;
+`--sem-banco` não lê nem grava no Supabase.
+
+## Banco de dados (Supabase)
+
+Cada execução grava as notícias dos temas em duas tabelas:
+
+- `noticias`: título, link, data de publicação, jornal(is), outros links da
+  mesma notícia, países, trecho do RSS, **texto da matéria**, **resumo da IA**,
+  data da coleta.
+- `noticias_temas`: em qual tema cada notícia entrou e por qual filtro.
+
+Notícia já gravada não é resumida de novo (economiza a API).
+
+O texto da matéria é extraído da própria página. Em sites com paywall (Valor,
+FT, WSJ) vem só o começo; links do Google News ficam só com o trecho do RSS.
+
+**Configurar (uma vez):**
+1. Crie um projeto em supabase.com.
+2. *SQL Editor → New query*: cole o conteúdo de `supabase/schema.sql` e clique
+   em *Run*.
+3. *Project Settings → API*: copie a **Project URL** e a chave **secret**
+   (ou `service_role`). Nunca use a chave pública/anon aqui.
+4. No GitHub, crie os secrets `SUPABASE_URL` e `SUPABASE_KEY` (mesmo lugar do
+   `ANTHROPIC_API_KEY`).
+
+**Consultar:** no *Table Editor* do Supabase, ou no *SQL Editor*:
+
+```sql
+-- últimas notícias de crédito
+select publicado_em, titulo, resumo_ia, link from noticias_por_tema
+where tema = 'credito' limit 50;
+
+-- busca por palavra (acentos e plural não importam)
+select publicado_em, titulo, resumo_ia, link from noticias
+where busca @@ websearch_to_tsquery('portuguese', 'Ri Happy')
+order by publicado_em desc;
+```
 
 ## O que cada notícia tem
 

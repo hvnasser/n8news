@@ -10,6 +10,8 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+from .artigo import baixar_textos
+from .banco import Supabase, id_noticia, reaproveitar
 from .busca import buscar_noticias, carregar_config
 from .paises import carregar_paises
 from .resumo import carregar_config_resumo, resumir_temas
@@ -66,12 +68,47 @@ def imprimir_temas(resultados) -> None:
                 print(f"- {n.titulo}  [{palavra}]")
 
 
+def processar_temas(por_tema, args, timeout) -> list[str]:
+    """Texto das matérias, resumo com IA e gravação no Supabase."""
+    avisos: list[str] = []
+    principais = [m for res in por_tema for m in res.noticias]
+    banco = None if args.sem_banco else Supabase.do_ambiente()
+    if banco is None and not args.sem_banco:
+        avisos.append("Supabase não configurado (SUPABASE_URL / SUPABASE_KEY): notícias não foram gravadas")
+
+    if banco:
+        try:
+            existentes = banco.existentes(list({id_noticia(m.noticia.link) for m in principais}))
+            n = reaproveitar(por_tema, existentes)
+            print(f"Banco: {len(existentes)} notícias já gravadas ({n} resumos reaproveitados)")
+        except Exception as e:  # noqa: BLE001
+            # Sem conseguir ler, não grava (evita apagar resumos antigos)
+            avisos.append(f"Supabase: erro ao ler ({e}); nada será gravado")
+            banco = None
+
+    if not args.sem_texto:
+        ok = baixar_textos([m.noticia for m in principais if not m.resumo_ia], timeout)
+        print(f"Texto das matérias: {ok} baixados")
+
+    if not args.sem_resumo:
+        avisos += resumir_temas(por_tema, carregar_config_resumo(args.temas))
+
+    if banco:
+        try:
+            print(f"Banco: {banco.salvar(por_tema)} notícias gravadas")
+        except Exception as e:  # noqa: BLE001
+            avisos.append(f"Supabase: erro ao gravar ({e})")
+    return avisos
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="n8news", description="Busca notícias e separa por tema.")
     p.add_argument("--config", default="feeds.yaml", help="arquivo de feeds (padrão: feeds.yaml)")
     p.add_argument("--temas", default="temas.yaml", help="arquivo de temas (padrão: temas.yaml)")
     p.add_argument("--paises", default="paises.yaml", help="arquivo de países (padrão: paises.yaml)")
     p.add_argument("--sem-resumo", action="store_true", help="não chama a IA para resumir")
+    p.add_argument("--sem-texto", action="store_true", help="não baixa o texto das matérias")
+    p.add_argument("--sem-banco", action="store_true", help="não lê nem grava no Supabase")
     p.add_argument("--horas", type=float, help="sobrescreve a janela de tempo do config")
     p.add_argument("--todas", action="store_true", help="lista todas as notícias, sem separar por tema")
     p.add_argument("--json", metavar="ARQUIVO", help="salva notícias e temas em JSON")
@@ -87,8 +124,8 @@ def main(argv=None) -> int:
     paises = carregar_paises(args.paises) if Path(args.paises).exists() else []
     por_tema = classificar(resultado.noticias, temas, paises)
     avisos = []
-    if not args.sem_resumo and not args.todas:
-        avisos = resumir_temas(por_tema, carregar_config_resumo(args.temas))
+    if not args.todas:
+        avisos = processar_temas(por_tema, args, config.timeout_segundos)
 
     if not args.quieto:
         if args.todas:

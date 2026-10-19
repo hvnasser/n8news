@@ -56,6 +56,9 @@ SCHEMA = {
 }
 
 
+TRECHO_MAX = 3000  # caracteres do texto da matéria enviados por notícia
+
+
 @dataclass
 class ConfigResumo:
     ativo: bool = True
@@ -75,7 +78,7 @@ def _entrada(tema: str, lote) -> str:
     for i, m in enumerate(lote):
         n = m.noticia
         fontes = list(dict.fromkeys(n.fontes + [f for r in m.relacionadas for f in r.fontes]))
-        trecho = n.resumo or next((r.resumo for r in m.relacionadas if r.resumo), "")
+        trecho = n.texto[:TRECHO_MAX] or n.resumo or next((r.resumo for r in m.relacionadas if r.resumo), "")
         noticias.append({"id": i, "titulo": n.titulo, "fontes": fontes, "trecho": trecho})
     return json.dumps({"tema": tema, "noticias": noticias}, ensure_ascii=False)
 
@@ -95,7 +98,7 @@ def resumir_temas(resultados: list[ResultadoTema], cfg: ConfigResumo, client=Non
 
     avisos: list[str] = []
     for res in resultados:
-        noticias = res.noticias
+        noticias = [m for m in res.noticias if not m.resumo_ia]  # já resumidas: reaproveita
         for inicio in range(0, len(noticias), cfg.max_por_chamada):
             lote = noticias[inicio : inicio + cfg.max_por_chamada]
             try:

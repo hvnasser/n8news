@@ -25,6 +25,8 @@ jobs:
       - name: Buscar notícias
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python -m n8news --json noticias.json
       - uses: actions/upload-artifact@v4
         with:
