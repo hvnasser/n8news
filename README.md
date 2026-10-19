@@ -66,6 +66,12 @@ entra no tema se passar em pelo menos um filtro.
 - `excluir` (no tema) tira notícias com aquelas palavras (ex: Serasa).
 - A saída mostra, em cada notícia, qual filtro e palavra a fizeram entrar,
   para facilitar ajustes.
+- Notícias sobre o mesmo fato em vários jornais viram uma só, com
+  "também em: ..." listando as outras fontes.
+
+As buscas do Google News (categoria `credito` no `feeds.yaml`) só aceitam
+notícias dos jornais em `google_news_fontes_permitidas`. Se quiser receber
+de um site que está ficando de fora, adicione o nome dele nessa lista.
 
 ## O que cada notícia tem
 
