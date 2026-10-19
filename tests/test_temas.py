@@ -33,6 +33,8 @@ def filtros_que_casam(tema, titulo, resumo="", categoria="economia"):
     ("Empresa X entra com pedido de recuperação judicial", "Recuperação judicial e extrajudicial"),
     ("Retailer files for Chapter 11 bankruptcy protection", "Default e calote"),
     ("Argentina deixou de pagar cupom de bônus", "Default e calote"),
+    ("O que está por trás do pedido de falência da Character.AI?", "Default e calote"),
+    ("Investors are pushing up the cost of insurance against an Oracle default", "Default e calote"),
     ("Companhia aérea fecha renegociação de dívidas com credores", "Renegociação e reestruturação de dívida"),
     ("Ghana reaches debt restructuring deal with bondholders", "Renegociação e reestruturação de dívida"),
 ])
@@ -50,6 +52,7 @@ def test_entra_no_tema(credito, titulo, filtro):
     ("Petrobras anuncia dividendos", "economia"),
     ("Empresa entra em recuperação judicial", "tecnologia"),  # categoria fora do tema
     ("CDS-PP apresenta voto de pesar", "mundo"),
+    ("Olhar de frente para um ovo é arriscar a falência do entendimento", "brasil"),
     ("Mercado Livre chega a três mega CDs no Rio Grande do Sul", "credito"),
     ("Best high-yield savings interest rates today: Earn up to 4.3% APY", "credito"),
     ("5 High-Yield Stocks to Buy Now Before Your Retirement Starts", "credito"),

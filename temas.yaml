@@ -171,6 +171,42 @@ temas:
           - insolvência
           - insolvency
           - liquidação extrajudicial
+        exige:  # evita sentido figurado ("a falência do entendimento")
+          - dívida*
+          - debt
+          - credor*
+          - creditor*
+          - crédito
+          - credit
+          - bond*
+          - bônus
+          - cupom
+          - título*
+          - empresa*
+          - compan*
+          - pagar
+          - pagament*
+          - payment*
+          - juros
+          - Chapter
+          - court
+          - tribunal
+          - Justiça
+          - pedido
+          - files
+          - filed
+          - filing
+          - loan*
+          - empréstimo*
+          - investor*
+          - investidor*
+          - banco*
+          - bank*
+          - governo
+          - government
+          - país
+          - country
+          - CDS
 
       - nome: Recuperação judicial e extrajudicial
         palavras:

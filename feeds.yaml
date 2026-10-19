@@ -41,6 +41,11 @@ config:
     - Poder360
     - Agência Brasil
     - Investing.com
+    - Valor Investe
+    - Capital Aberto
+    - JOTA
+    - Migalhas
+    - Conjur
     # Internacional
     - Reuters
     - Bloomberg
@@ -74,6 +79,26 @@ config:
     - Private Debt Investor
     - Creditflux
     - Alternative Credit Investor
+    - Yahoo Finance
+    - Fortune
+    - Business Insider
+    - Forbes
+    - TheStreet
+    - S&P Global
+    - Moody's
+    - Fitch Ratings
+    - Morningstar
+    - Law360
+    - Debtwire
+    - Octus
+    - 9fin
+    - Financial News
+    - Euromoney
+    - Institutional Investor
+    - Semafor
+    - Global Banking and Finance
+    - Africa Report
+    - Devex
 
 feeds:
   # ---------- Brasil ----------
@@ -114,8 +139,10 @@ feeds:
   - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22recupera%C3%A7%C3%A3o+judicial%22+OR+%22recupera%C3%A7%C3%A3o+extrajudicial%22+OR+%22pedido+de+fal%C3%AAncia%22+when%3A1d&hl=pt-BR&gl=BR&ceid=BR:pt-419" }
   - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22risco-pa%C3%ADs%22+OR+%22CDS%22+OR+%22deb%C3%AAntures%22+OR+%22cr%C3%A9dito+privado%22+OR+%22spreads+de+cr%C3%A9dito%22+when%3A1d&hl=pt-BR&gl=BR&ceid=BR:pt-419" }
   - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=calote+OR+inadimpl%C3%AAncia+OR+%22renegocia%C3%A7%C3%A3o+de+d%C3%ADvida%22+OR+%22reestrutura%C3%A7%C3%A3o+de+d%C3%ADvida%22+empresa+when%3A1d&hl=pt-BR&gl=BR&ceid=BR:pt-419" }
-  - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22credit+spreads%22+OR+%22high+yield%22+OR+%22junk+bonds%22+OR+%22private+credit%22+OR+%22leveraged+loans%22+when%3A1d&hl=en-US&gl=US&ceid=US:en" }
-  - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22debt+restructuring%22+OR+%22sovereign+default%22+OR+%22Chapter+11%22+OR+%22sovereign+debt%22+OR+%22bond+default%22+when%3A1d&hl=en-US&gl=US&ceid=US:en" }
+  # Internacional: só nos principais jornais de finanças
+  - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22credit+spreads%22+OR+%22high+yield%22+OR+%22junk+bonds%22+OR+%22private+credit%22+OR+%22leveraged+loans%22+OR+%22bond+sale%22+OR+%22investment+grade%22+%28site%3Areuters.com+OR+site%3Abloomberg.com+OR+site%3Aft.com+OR+site%3Awsj.com+OR+site%3Acnbc.com+OR+site%3Abarrons.com+OR+site%3Amarketwatch.com+OR+site%3Afortune.com+OR+site%3Abusinessinsider.com+OR+site%3Afinance.yahoo.com%29+when%3A1d&hl=en-US&gl=US&ceid=US:en" }
+  - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22debt+restructuring%22+OR+%22sovereign+default%22+OR+%22Chapter+11%22+OR+bankruptcy+OR+bondholders+OR+%22missed+payment%22+OR+creditors+%28site%3Areuters.com+OR+site%3Abloomberg.com+OR+site%3Aft.com+OR+site%3Awsj.com+OR+site%3Acnbc.com+OR+site%3Abarrons.com+OR+site%3Amarketwatch.com+OR+site%3Afortune.com+OR+site%3Abusinessinsider.com+OR+site%3Afinance.yahoo.com%29+when%3A1d&hl=en-US&gl=US&ceid=US:en" }
+  - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22bond+yields%22+OR+%22bond+spreads%22+OR+%22sovereign+debt%22+OR+%22credit+rating%22+OR+downgrade+OR+%22risk+premium%22+OR+%22credit+default+swaps%22+%28site%3Areuters.com+OR+site%3Abloomberg.com+OR+site%3Aft.com+OR+site%3Awsj.com+OR+site%3Acnbc.com+OR+site%3Abarrons.com+OR+site%3Amarketwatch.com+OR+site%3Afortune.com+OR+site%3Abusinessinsider.com+OR+site%3Afinance.yahoo.com%29+when%3A1d&hl=en-US&gl=US&ceid=US:en" }
   # Brazil Journal: o feed responde, mas sem notícias recentes (out/2026)
   - { fonte: Brazil Journal,  categoria: credito, url: "https://braziljournal.com/feed/", ativo: false }
   - { fonte: Bloomberg Línea, categoria: credito, url: "https://www.bloomberglinea.com.br/arc/outboundfeeds/rss/?outputType=xml" }
