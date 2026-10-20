@@ -1,0 +1,124 @@
+# Países reconhecidos nas notícias, separados em grupos.
+#
+# Os temas (temas.yaml) dizem quais grupos/países são permitidos. Uma notícia
+# que cita SÓ países fora da lista permitida é removida. Notícia que não cita
+# nenhum país (ex: "Ri Happy pede recuperação extrajudicial") é mantida.
+#
+# Para mudar um país de grupo, troque o `grupo`. Para um país novo, copie uma
+# linha. `nomes` segue as mesmas regras das palavras-chave dos temas
+# (acentos/maiúsculas não importam, * aceita qualquer final).
+
+paises:
+  # ---------------- G10 (+ Austrália, Nova Zelândia, Noruega, Espanha) ----------------
+  EUA:  { grupo: g10, nomes: [Estados Unidos, EUA, norte-american*, United States, U.S., Wall Street, Treasury, Treasuries, Federal Reserve] }
+  CAN:  { grupo: g10, nomes: [Canadá, canadense*, Canada, Canadian*] }
+  GBR:  { grupo: g10, nomes: [Reino Unido, britânic*, Inglaterra, Londres, United Kingdom, UK, Britain, British, England, London, gilt*, Bank of England, BoE] }
+  DEU:  { grupo: g10, nomes: [Alemanha, alemã, alemão, alemães, Germany, German*, Bund, Bunds, Bundesbank] }
+  FRA:  { grupo: g10, nomes: [França, frances*, Paris, France, French, OAT] }
+  ITA:  { grupo: g10, nomes: [Itália, italian*, Italy, BTP*] }
+  JPN:  { grupo: g10, nomes: [Japão, japones*, Japan, Japanese, JGB*, Bank of Japan, BoJ, Tóquio, Tokyo] }
+  CHE:  { grupo: g10, nomes: [Suíça, suíço*, Switzerland, Swiss] }
+  SWE:  { grupo: g10, nomes: [Suécia, sueco*, Sweden, Swedish] }
+  NLD:  { grupo: g10, nomes: [Holanda, Países Baixos, holandes*, Netherlands, Dutch] }
+  BEL:  { grupo: g10, nomes: [Bélgica, belga*, Belgium, Belgian] }
+  AUS:  { grupo: g10, nomes: [Austrália, australian*, Australia] }
+  NZL:  { grupo: g10, nomes: [Nova Zelândia, New Zealand] }
+  NOR:  { grupo: g10, nomes: [Noruega, norueg*, Norway, Norwegian] }
+  ESP:  { grupo: g10, nomes: [Espanha, espanhol*, Spain, Spanish] }
+  EUR:  { grupo: g10, nomes: [zona do euro, União Europeia, BCE, eurozone, euro area, European Union, ECB, European Central Bank] }
+
+  # ---------------- Principais emergentes ----------------
+  BRA:  { grupo: em, nomes: [Brasil, brasileir*, Brazil*, Ibovespa, Banco Central do Brasil, Copom,
+                             # empresas brasileiras (ajudam a reconhecer notícias em inglês)
+                             Petrobras, Itaú, Itau Unibanco, Bradesco, BTG Pactual, Eletrobras, Embraer,
+                             Suzano, JBS, Marfrig, BRF, Braskem, Raízen, Cosan, Localiza, Americanas,
+                             Casas Bahia, Natura, Ambev, Sabesp, Cemig, Copel, Vale SA, Vale S.A.] }
+  MEX:  { grupo: em, nomes: [México, mexican*, Mexico, Pemex] }
+  CHL:  { grupo: em, nomes: [Chile, chilen*] }
+  COL:  { grupo: em, nomes: [Colômbia, colombian*, Colombia] }
+  PER:  { grupo: em, nomes: [Peru, peruan*, Peruvian] }
+  ARG:  { grupo: em, nomes: [Argentina, argentin*] }  # tecnicamente "standalone"/frontier, mantido pela relevância para o Brasil
+  CHN:  { grupo: em, nomes: [China, chines*, Chinese, Pequim, Beijing, Evergrande, Country Garden, Vanke] }
+  HKG:  { grupo: em, nomes: [Hong Kong] }
+  IND:  { grupo: em, nomes: [Índia, indian*, India] }
+  IDN:  { grupo: em, nomes: [Indonésia, indonesi*, Indonesia] }
+  KOR:  { grupo: em, nomes: [Coreia do Sul, sul-corean*, South Korea, Korea, Korean*] }
+  TWN:  { grupo: em, nomes: [Taiwan*] }
+  MYS:  { grupo: em, nomes: [Malásia, malaio*, Malaysia*] }
+  THA:  { grupo: em, nomes: [Tailândia, tailandes*, Thailand, Thai] }
+  PHL:  { grupo: em, nomes: [Filipinas, filipin*, Philippine*] }
+  ZAF:  { grupo: em, nomes: [África do Sul, sul-african*, South Africa*] }
+  TUR:  { grupo: em, nomes: [Turquia, turco*, turca*, Türkiye, Turkish] }
+  POL:  { grupo: em, nomes: [Polônia, polones*, Poland, Polish] }
+  HUN:  { grupo: em, nomes: [Hungria, húngar*, Hungary, Hungarian] }
+  CZE:  { grupo: em, nomes: [República Tcheca, tcheco*, Czech*] }
+  SAU:  { grupo: em, nomes: [Arábia Saudita, saudita*, Saudi*] }
+  ARE:  { grupo: em, nomes: [Emirados Árabes, United Arab Emirates, UAE, Dubai, Abu Dhabi] }
+  ISR:  { grupo: em, nomes: [Israel, israelense*, Israeli] }
+
+  # ---------------- Outros (frontier e demais) ----------------
+  RUS:  { grupo: outros, nomes: [Rússia, russo, russa, russos, russas, Russia, Russian*] }
+  UKR:  { grupo: outros, nomes: [Ucrânia, ucranian*, Ukrain*] }
+  LKA:  { grupo: outros, nomes: [Sri Lanka*, Lanka*] }
+  PAK:  { grupo: outros, nomes: [Paquistão, paquistanes*, Pakistan*] }
+  BGD:  { grupo: outros, nomes: [Bangladesh*] }
+  VNM:  { grupo: outros, nomes: [Vietnã, vietnamit*, Vietnam*] }
+  MNG:  { grupo: outros, nomes: [Mongólia, Mongolia*] }
+  MDV:  { grupo: outros, nomes: [Maldivas, Maldives] }
+  LAO:  { grupo: outros, nomes: [Laos] }
+  MMR:  { grupo: outros, nomes: [Myanmar] }
+  KHM:  { grupo: outros, nomes: [Camboja, Cambodia*] }
+  NPL:  { grupo: outros, nomes: [Nepal*] }
+  KAZ:  { grupo: outros, nomes: [Cazaquistão, Kazakhstan*] }
+  UZB:  { grupo: outros, nomes: [Uzbequistão, Uzbekistan*] }
+  GHA:  { grupo: outros, nomes: [Gana, Ghana*] }
+  ZMB:  { grupo: outros, nomes: [Zâmbia, Zambia*] }
+  NGA:  { grupo: outros, nomes: [Nigéria, nigerian*, Nigeria*] }
+  KEN:  { grupo: outros, nomes: [Quênia, Kenya*] }
+  EGY:  { grupo: outros, nomes: [Egito, egípci*, Egypt*] }
+  ETH:  { grupo: outros, nomes: [Etiópia, Ethiopia*] }
+  AGO:  { grupo: outros, nomes: [Angola*] }
+  MOZ:  { grupo: outros, nomes: [Moçambique, Mozambique] }
+  SEN:  { grupo: outros, nomes: [Senegal*] }
+  CIV:  { grupo: outros, nomes: [Costa do Marfim, Ivory Coast, Côte d'Ivoire] }
+  TUN:  { grupo: outros, nomes: [Tunísia, Tunisia*] }
+  MAR:  { grupo: outros, nomes: [Marrocos, Morocc*] }
+  DZA:  { grupo: outros, nomes: [Argélia, Algeria*] }
+  LBY:  { grupo: outros, nomes: [Líbia, Libya*] }
+  SDN:  { grupo: outros, nomes: [Sudão, Sudan*] }
+  UGA:  { grupo: outros, nomes: [Uganda*] }
+  TZA:  { grupo: outros, nomes: [Tanzânia, Tanzania*] }
+  MWI:  { grupo: outros, nomes: [Malawi*, Malauí] }
+  ZWE:  { grupo: outros, nomes: [Zimbábue, Zimbabwe*] }
+  CMR:  { grupo: outros, nomes: [Camarões, Cameroon*] }
+  GAB:  { grupo: outros, nomes: [Gabão, Gabon*] }
+  RWA:  { grupo: outros, nomes: [Ruanda, Rwanda*] }
+  NAM:  { grupo: outros, nomes: [Namíbia, Namibia*] }
+  LBN:  { grupo: outros, nomes: [Líbano, Lebanon, Lebanese] }
+  JOR:  { grupo: outros, nomes: [Jordânia] }
+  IRQ:  { grupo: outros, nomes: [Iraque, Iraq*] }
+  IRN:  { grupo: outros, nomes: [Irã, Iran*] }
+  SYR:  { grupo: outros, nomes: [Síria, Syria*] }
+  YEM:  { grupo: outros, nomes: [Iêmen, Yemen*] }
+  OMN:  { grupo: outros, nomes: [Omã, Oman*] }
+  BHR:  { grupo: outros, nomes: [Bahrein, Bahrain*] }
+  QAT:  { grupo: outros, nomes: [Catar, Qatar*] }
+  KWT:  { grupo: outros, nomes: [Kuwait*] }
+  ECU:  { grupo: outros, nomes: [Equador, equatorian*, Ecuador*] }
+  BOL:  { grupo: outros, nomes: [Bolívia, bolivian*, Bolivia] }
+  SLV:  { grupo: outros, nomes: [El Salvador, salvadoren*, Salvador*an] }
+  VEN:  { grupo: outros, nomes: [Venezuela*, venezuelan*] }
+  URY:  { grupo: outros, nomes: [Uruguai, uruguai*, Uruguay*] }
+  PRY:  { grupo: outros, nomes: [Paraguai, paraguai*, Paraguay*] }
+  CRI:  { grupo: outros, nomes: [Costa Rica*] }
+  PAN:  { grupo: outros, nomes: [Panamá, Panama*] }
+  DOM:  { grupo: outros, nomes: [República Dominicana, Dominican Republic] }
+  JAM:  { grupo: outros, nomes: [Jamaica*] }
+  SUR:  { grupo: outros, nomes: [Suriname*] }
+  CUB:  { grupo: outros, nomes: [Cuba, cuban*] }
+  NIC:  { grupo: outros, nomes: [Nicarágua, Nicaragua*] }
+  HND:  { grupo: outros, nomes: [Honduras] }
+  GTM:  { grupo: outros, nomes: [Guatemala*] }
+  BLR:  { grupo: outros, nomes: [Belarus, Bielorrússia] }
+  SRB:  { grupo: outros, nomes: [Sérvia, Serbia*] }
+  ROU:  { grupo: outros, nomes: [Romênia, Romania*] }

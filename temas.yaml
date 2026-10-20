@@ -1,0 +1,339 @@
+# Temas do e-mail e seus filtros
+#
+# Cada tema tem FILTROS. Uma notícia entra no tema se passar em pelo menos um
+# filtro ativo. Para ligar/desligar um filtro, use `ativo: true/false`.
+#
+# Em cada filtro:
+#   palavras: basta UMA aparecer no título ou resumo para a notícia passar
+#   exige:    (opcional) além disso, pelo menos UMA destas também precisa
+#             aparecer. Serve para palavras ambíguas, ex: "spread" sozinho
+#             pega "spread of the virus"; exigindo "bond" ou "crédito" junto,
+#             só passa notícia de mercado.
+#
+# Regras das palavras:
+#   - maiúsculas, acentos e hífens não importam ("risco-país" = "risco pais")
+#   - a palavra tem que aparecer inteira: "default" não pega "defaulted"
+#   - use * para aceitar qualquer final: "renegoci*" pega renegociação,
+#     renegociar, renegociou...
+#
+# Em cada filtro também (opcional):
+#   regiao:         brasil | mundo -> o filtro só pega notícias dessa região
+#   separar_brasil: false -> no e-mail, não divide o filtro em Brasil / Mundo
+#
+# No tema:
+#   categorias: só procura em notícias dessas categorias do feeds.yaml
+#               (deixe vazio [] para procurar em todas)
+#   excluir:    notícia com qualquer uma destas palavras sai do tema
+
+# IA: cada tarefa usa o modelo que você escolher.
+#
+# provedor: openrouter (padrão, chave OPENROUTER_API_KEY) ou anthropic
+#           (direto na Anthropic, chave ANTHROPIC_API_KEY).
+# Nomes dos modelos no OpenRouter: https://openrouter.ai/models
+#   (ex: anthropic/claude-opus-5.5, anthropic/claude-sonnet-5.5,
+#    anthropic/claude-haiku-5.5, openai/gpt-6-sol, google/gemini-3.6-flash,
+#    deepseek/deepseek-v4.1-flash). Na Anthropic direta: claude-opus-5-5 etc.
+# esforco: low | medium | high (só para modelos com raciocínio; apague a linha
+#          para usar o padrão do modelo). Mais alto = melhor e mais caro.
+# Sem chave, o e-mail sai com o trecho original do RSS.
+ia:
+  provedor: openrouter
+  remover_irrelevantes: true   # tira do tema o que a IA marcar como fora do tema
+  tarefas:
+    relevancia:                # confirma se a notícia é mesmo do tema
+      modelo: deepseek/deepseek-v4.1-flash
+      esforco: low
+      ativo: true
+    resumo:                    # resumo de 1-2 frases em português
+      modelo: deepseek/deepseek-v4.1-flash
+      esforco: medium
+      ativo: true
+
+temas:
+  - id: credito
+    nome: Crédito
+    categorias: [credito, economia, mercado, mundo, brasil]
+    # Países aceitos: grupos do paises.yaml (g10, em) e/ou códigos (ex: VEN).
+    # Notícia que cita SÓ países fora daqui (ex: Gana, Sri Lanka) sai do tema.
+    # Notícia sem país citado (ex: empresa brasileira em RJ) fica.
+    paises_permitidos: [g10, em]
+    # Opcional: trocar o modelo de uma tarefa só neste tema. Ex:
+    # ia:
+    #   resumo: { modelo: anthropic/claude-sonnet-5.5 }
+    excluir:
+      # Dívida de pessoa física (feirões de renegociação etc).
+      # Apague estas linhas se quiser receber esse tipo de notícia.
+      - Feirão
+      - Limpa Nome
+      - Desenrola
+      - nome sujo
+      # Finanças pessoais e ações (não são crédito corporativo/soberano)
+      - S&P 500
+      - savings
+      - APY
+      - CD rates
+      - dividend stock*
+      - high yield stock*
+      - high yield dividend*
+      - put credit spread*
+      - call credit spread*
+      - price target*
+      - buy rating
+      - sell rating
+      - hold rating
+      - CDS PP
+
+    filtros:
+      - nome: Recuperação judicial e extrajudicial
+        separar_brasil: false   # no e-mail, não divide em Brasil / Mundo
+        palavras:
+          - recuperação judicial
+          - recuperação extrajudicial
+          - pedido de RJ
+          - em RJ
+          - plano de recuperação
+          - Chapter 11
+          - Chapter 15
+          - Chapter 7
+          - administração judicial
+          - administrador judicial
+          - credores
+          - creditors
+
+      - nome: Captações de empresas brasileiras
+        regiao: brasil   # só notícias do Brasil / de empresas brasileiras
+        palavras:
+          - emissão
+          - emissões
+          - emite
+          - emitir
+          - emitiu
+          - capta*
+          - oferta*
+          - precifica*
+          - coloca*
+          - bond sale*
+          - bond offering*
+          - debt offering*
+          - notes offering*
+          - prices notes
+          - prices bonds
+          - sells bonds
+          - raises
+          - empréstimo sindicalizado
+          - sindicaliz*
+        exige:  # tem que ser dívida (não ações, não "emissão de carbono")
+          - debênture*
+          - bond*
+          - eurobond*
+          - nota* comercia*
+          - nota* promissória*
+          - notes
+          - CRA
+          - CRI
+          - FIDC*
+          - título* de dívida
+          - dívida
+          - debt
+          - crédito
+          - empréstimo*
+          - loan*
+          - green bond*
+
+      - nome: Spreads corporativos
+        palavras:
+          - spread*
+          - prêmio de risco
+          - high yield
+          - junk bond*
+          - investment grade
+          - grau especulativo
+          - credit market*
+          - mercado de crédito
+          - crédito privado
+          - private credit
+          - leveraged loan*
+          - debênture*
+          - corporate bond*
+          - bond spread*
+          - CRI
+          - CRA
+          - FIDC*
+        exige:  # só passa se também falar de crédito/títulos
+          - crédito
+          - credit
+          - bond*
+          - debênture*
+          - título*
+          - emissão
+          - emissões
+          - high yield
+          - junk
+          - investment grade
+          - private credit
+          - crédito privado
+          - leveraged
+          - CRI
+          - CRA
+          - FIDC*
+          - CDI
+          - IPCA
+
+      - nome: Spreads soberanos e risco-país
+        palavras:
+          - risco país
+          - CDS de
+          - CDS do Brasil
+          - CDS soberano
+          - CDS spread*
+          - CDS 5 anos
+          - credit default swap*
+          - EMBI
+          - spread soberano
+          - sovereign spread*
+          - sovereign debt
+          - sovereign bond*
+          - dívida soberana
+          - título* soberano*
+          - eurobond*
+          - Treasury yield*
+          - bond yield*
+          - gilt*
+          - Bund
+          - Bunds
+          - BTP
+          - OAT
+          - JGB*
+          - bond market*
+          - bond vigilantes
+          - dívida pública
+          - debt ceiling
+          - teto da dívida
+
+      - nome: Ratings
+        palavras:
+          - rating*
+          - grau de investimento
+          - nota de crédito
+          - nota soberana
+          - downgrade*
+          - upgrade*
+          - rebaix*
+          - perspectiva negativa
+          - perspectiva positiva
+          - outlook negativo
+          - negative outlook
+          - positive outlook
+        exige:  # só ratings de crédito (agências), não recomendação de ação
+          - Moody's
+          - Fitch
+          - S&P Global
+          - Standard & Poor's
+          - agência de classificação
+          - agências de classificação
+          - agência de rating
+          - agências de rating
+          - classificação de risco
+          - grau de investimento
+          - nota de crédito
+          - nota soberana
+          - credit rating*
+          - sovereign rating*
+          - investment grade
+          - junk
+
+      - nome: Default e calote
+        palavras:
+          - default*
+          - calote*
+          - inadimplente
+          - deixou de pagar
+          - deixa de pagar
+          - não pagou
+          - missed payment*
+          - missed coupon
+          - skipped payment
+          - cross default
+          - vencimento antecipado
+          - falência
+          - falências
+          - bankruptcy
+          - bankrupt
+          - insolvência
+          - insolvency
+          - liquidação extrajudicial
+        exige:  # evita sentido figurado ("a falência do entendimento")
+          - dívida*
+          - debt
+          - credor*
+          - creditor*
+          - crédito
+          - credit
+          - bond*
+          - bônus
+          - cupom
+          - título*
+          - empresa*
+          - compan*
+          - pagar
+          - pagament*
+          - payment*
+          - juros
+          - Chapter
+          - court
+          - tribunal
+          - Justiça
+          - pedido
+          - files
+          - filed
+          - filing
+          - loan*
+          - empréstimo*
+          - investor*
+          - investidor*
+          - banco*
+          - bank*
+          - governo
+          - government
+          - país
+          - country
+          - CDS
+
+      - nome: Renegociação e reestruturação de dívida
+        palavras:
+          - renegoci*
+          - reestruturação de dívida*
+          - reestruturação da dívida
+          - reestruturação financeira
+          - reestruturar dívida*
+          - reestruturar a dívida
+          - reperfilamento
+          - alongamento de dívida*
+          - debt restructuring
+          - restructuring support agreement
+          - restructure* debt
+          - debt relief
+          - debt swap
+          - debt exchange
+          - exchange offer
+          - liability management
+          - haircut
+          - standstill
+          - Clube de Paris
+          - Paris Club
+          - Common Framework
+        exige:
+          - dívida*
+          - debt
+          - credor*
+          - creditor*
+          - bond*
+          - título*
+          - empréstimo*
+          - loan*
+          - financ*
+          - haircut
+          - standstill
+          - Clube de Paris
+          - Paris Club
+          - Common Framework

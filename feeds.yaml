@@ -1,0 +1,157 @@
+# Fontes de notícias (etapa 1: busca)
+#
+# Cada feed tem:
+#   fonte:     nome que aparece nas notícias
+#   categoria: de onde a notícia veio (brasil, mundo, economia, mercado,
+#              tecnologia). Os TEMAS do e-mail serão montados na próxima etapa
+#              usando essa categoria + palavras-chave.
+#   url:       endereço do feed RSS
+#   ativo:     false para desligar um feed sem apagar (opcional)
+
+config:
+  janela_horas: 24      # só mantém notícias publicadas nas últimas X horas
+  max_por_feed: 30      # limite de notícias lidas por feed
+  timeout_segundos: 15  # tempo máximo de espera por feed
+  ignorar_links_com:    # descarta notícias cujo link contenha algum destes trechos
+    - /patrocinado/     # conteúdo pago (ex: Valor)
+
+  # As buscas do Google News trazem notícias de qualquer site. Só ficam as dos
+  # jornais desta lista (basta o nome aparecer no nome da fonte: "Valor"
+  # aceita "Valor Econômico" e "Valor Investe"). Lista vazia = aceita todos.
+  google_news_fontes_permitidas:
+    # Brasil
+    - Valor
+    - Estadão
+    - Folha
+    - G1
+    - O Globo
+    - Exame
+    - InfoMoney
+    - CNN Brasil
+    - NeoFeed
+    - Brazil Journal
+    - Pipeline
+    - Bloomberg Línea
+    - UOL
+    - Money Times
+    - Seu Dinheiro
+    - E-Investidor
+    - Times Brasil
+    - Veja
+    - Poder360
+    - Agência Brasil
+    - Investing.com
+    - Valor Investe
+    - Capital Aberto
+    - JOTA
+    - Migalhas
+    - Conjur
+    # Internacional
+    - Reuters
+    - Bloomberg
+    - Financial Times
+    - FT
+    - WSJ
+    - Wall Street Journal
+    - Barron's
+    - MarketWatch
+    - CNBC
+    - The Economist
+    - New York Times
+    - Washington Post
+    - Associated Press
+    - AP News
+    - Axios
+    - BBC
+    - Guardian
+    - Nikkei
+    - Le Monde
+    - Les Echos
+    - Handelsblatt
+    - El País
+    - Clarín
+    - La Nación
+    - Ámbito
+    - Infobae
+    - IFR
+    - GlobalCapital
+    - PitchBook
+    - Private Debt Investor
+    - Creditflux
+    - Alternative Credit Investor
+    - Yahoo Finance
+    - Fortune
+    - Business Insider
+    - Forbes
+    - TheStreet
+    - S&P Global
+    - Moody's
+    - Fitch Ratings
+    - Morningstar
+    - Law360
+    - Debtwire
+    - Octus
+    - 9fin
+    - Financial News
+    - Euromoney
+    - Institutional Investor
+    - Semafor
+    - Global Banking and Finance
+    - Africa Report
+    - Devex
+
+feeds:
+  # ---------- Brasil ----------
+  - { fonte: G1,             categoria: brasil, url: "https://g1.globo.com/rss/g1/" }
+  - { fonte: Folha,          categoria: brasil, url: "https://feeds.folha.uol.com.br/emcimadahora/rss091.xml" }
+  - { fonte: Estadão,        categoria: brasil, url: "https://www.estadao.com.br/arc/outboundfeeds/feeds/rss/sections/politica/" }
+  - { fonte: CNN Brasil,     categoria: brasil, url: "https://www.cnnbrasil.com.br/feed/" }
+  - { fonte: Agência Brasil, categoria: brasil, url: "https://agenciabrasil.ebc.com.br/rss/ultimasnoticias/feed.xml" }
+  - { fonte: Poder360,       categoria: brasil, url: "https://www.poder360.com.br/feed/" }
+
+  # ---------- Mundo ----------
+  - { fonte: BBC News Brasil, categoria: mundo, url: "https://www.bbc.com/portuguese/index.xml" }
+  - { fonte: Folha Mundo,     categoria: mundo, url: "https://feeds.folha.uol.com.br/mundo/rss091.xml" }
+  - { fonte: BBC World,       categoria: mundo, url: "https://feeds.bbci.co.uk/news/world/rss.xml" }
+  - { fonte: The Guardian,    categoria: mundo, url: "https://www.theguardian.com/world/rss" }
+  - { fonte: New York Times,  categoria: mundo, url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml" }
+  - { fonte: Al Jazeera,      categoria: mundo, url: "https://www.aljazeera.com/xml/rss/all.xml" }
+  - { fonte: Financial Times, categoria: mundo, url: "https://www.ft.com/world?format=rss" }
+
+  # ---------- Economia ----------
+  - { fonte: Valor Econômico, categoria: economia, url: "https://valor.globo.com/rss/valor/" }
+  - { fonte: Financial Times, categoria: economia, url: "https://www.ft.com/companies?format=rss" }
+  # O WSJ não atualiza mais os feeds RSS oficiais; usamos a busca do Google News
+  # (o link passa pelo Google e abre a matéria no site do WSJ).
+  - { fonte: Wall Street Journal, categoria: economia, url: "https://news.google.com/rss/search?q=site:wsj.com+when:1d&hl=en-US&gl=US&ceid=US:en" }
+  - { fonte: G1 Economia,   categoria: economia, url: "https://g1.globo.com/rss/g1/economia/" }
+  - { fonte: Folha Mercado, categoria: economia, url: "https://feeds.folha.uol.com.br/mercado/rss091.xml" }
+  - { fonte: InfoMoney,     categoria: economia, url: "https://www.infomoney.com.br/feed/" }
+  - { fonte: CNBC,          categoria: economia, url: "https://www.cnbc.com/id/100003114/device/rss/rss.html" }
+
+  # ---------- Mercado / Ações ----------
+  - { fonte: Financial Times,    categoria: mercado, url: "https://www.ft.com/markets?format=rss" }
+  - { fonte: InfoMoney Mercados, categoria: mercado, url: "https://www.infomoney.com.br/mercados/feed/" }
+  - { fonte: Money Times,        categoria: mercado, url: "https://www.moneytimes.com.br/feed/" }
+
+  # ---------- Crédito (buscas focadas; usadas pelo tema Crédito) ----------
+  # Buscas do Google News: o link passa pelo Google e abre a matéria no site original.
+  - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22recupera%C3%A7%C3%A3o+judicial%22+OR+%22recupera%C3%A7%C3%A3o+extrajudicial%22+OR+%22pedido+de+fal%C3%AAncia%22+when%3A1d&hl=pt-BR&gl=BR&ceid=BR:pt-419" }
+  - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22risco-pa%C3%ADs%22+OR+%22CDS%22+OR+%22deb%C3%AAntures%22+OR+%22cr%C3%A9dito+privado%22+OR+%22spreads+de+cr%C3%A9dito%22+when%3A1d&hl=pt-BR&gl=BR&ceid=BR:pt-419" }
+  - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=calote+OR+inadimpl%C3%AAncia+OR+%22renegocia%C3%A7%C3%A3o+de+d%C3%ADvida%22+OR+%22reestrutura%C3%A7%C3%A3o+de+d%C3%ADvida%22+empresa+when%3A1d&hl=pt-BR&gl=BR&ceid=BR:pt-419" }
+  # Captações de empresas brasileiras (debêntures, bonds, notas comerciais...)
+  - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22emiss%C3%A3o+de+deb%C3%AAntures%22+OR+%22capta%C3%A7%C3%A3o%22+OR+%22notas+comerciais%22+OR+%22emiss%C3%A3o+de+bonds%22+OR+%22bonds+no+exterior%22+OR+%22t%C3%ADtulos+de+d%C3%ADvida%22+when%3A1d&hl=pt-BR&gl=BR&ceid=BR:pt-419" }
+  - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%28Brazil+OR+Brazilian+OR+Petrobras%29+%28%22bond+sale%22+OR+%22bond+offering%22+OR+%22notes+offering%22+OR+%22prices+bonds%22%29+%28site%3Areuters.com+OR+site%3Abloomberg.com+OR+site%3Aft.com+OR+site%3Awsj.com+OR+site%3Acnbc.com+OR+site%3Abarrons.com+OR+site%3Amarketwatch.com+OR+site%3Afortune.com+OR+site%3Abusinessinsider.com+OR+site%3Afinance.yahoo.com%29+when%3A1d&hl=en-US&gl=US&ceid=US:en" }
+  # Internacional: só nos principais jornais de finanças
+  - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22credit+spreads%22+OR+%22high+yield%22+OR+%22junk+bonds%22+OR+%22private+credit%22+OR+%22leveraged+loans%22+OR+%22bond+sale%22+OR+%22investment+grade%22+%28site%3Areuters.com+OR+site%3Abloomberg.com+OR+site%3Aft.com+OR+site%3Awsj.com+OR+site%3Acnbc.com+OR+site%3Abarrons.com+OR+site%3Amarketwatch.com+OR+site%3Afortune.com+OR+site%3Abusinessinsider.com+OR+site%3Afinance.yahoo.com%29+when%3A1d&hl=en-US&gl=US&ceid=US:en" }
+  - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22debt+restructuring%22+OR+%22sovereign+default%22+OR+%22Chapter+11%22+OR+bankruptcy+OR+bondholders+OR+%22missed+payment%22+OR+creditors+%28site%3Areuters.com+OR+site%3Abloomberg.com+OR+site%3Aft.com+OR+site%3Awsj.com+OR+site%3Acnbc.com+OR+site%3Abarrons.com+OR+site%3Amarketwatch.com+OR+site%3Afortune.com+OR+site%3Abusinessinsider.com+OR+site%3Afinance.yahoo.com%29+when%3A1d&hl=en-US&gl=US&ceid=US:en" }
+  - { fonte: Google News, categoria: credito, url: "https://news.google.com/rss/search?q=%22bond+yields%22+OR+%22bond+spreads%22+OR+%22sovereign+debt%22+OR+%22credit+rating%22+OR+downgrade+OR+%22risk+premium%22+OR+%22credit+default+swaps%22+%28site%3Areuters.com+OR+site%3Abloomberg.com+OR+site%3Aft.com+OR+site%3Awsj.com+OR+site%3Acnbc.com+OR+site%3Abarrons.com+OR+site%3Amarketwatch.com+OR+site%3Afortune.com+OR+site%3Abusinessinsider.com+OR+site%3Afinance.yahoo.com%29+when%3A1d&hl=en-US&gl=US&ceid=US:en" }
+  # Brazil Journal: o feed responde, mas sem notícias recentes (out/2026)
+  - { fonte: Brazil Journal,  categoria: credito, url: "https://braziljournal.com/feed/", ativo: false }
+  - { fonte: Bloomberg Línea, categoria: credito, url: "https://www.bloomberglinea.com.br/arc/outboundfeeds/rss/?outputType=xml" }
+
+  # ---------- Tecnologia ----------
+  - { fonte: G1 Tecnologia, categoria: tecnologia, url: "https://g1.globo.com/rss/g1/tecnologia/" }
+  - { fonte: Tecnoblog,     categoria: tecnologia, url: "https://tecnoblog.net/feed/" }
+  - { fonte: The Verge,     categoria: tecnologia, url: "https://www.theverge.com/rss/index.xml" }
+  - { fonte: TechCrunch,    categoria: tecnologia, url: "https://techcrunch.com/feed/" }
