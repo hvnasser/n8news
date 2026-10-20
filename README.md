@@ -15,8 +15,10 @@ com link + resumo e filtros por tema (ex: escolher quais ações acompanhar).
       tarefa) + filtro de países (G10 e principais emergentes).
 - [x] **Banco de dados (Supabase)**: guarda cada notícia com data, texto,
       resumo, link e tema, para consultar depois.
-- [ ] 4. Montar e enviar o e-mail
-- [ ] 5. Agendar (GitHub Actions)
+- [x] **4. E-mail pelo Gmail**: notícias do dia por tema e filtro, com link,
+      fonte, horário (Brasília) e resumo.
+- [x] **5. Agendado** todo dia às 06:50 (Brasília) pelo GitHub Actions
+      (vale depois que o código estiver no branch principal).
 
 ## Rodar
 
@@ -115,6 +117,25 @@ Chave:
 Sem a chave tudo funciona, só que com o trecho original do RSS no lugar do
 resumo. `--sem-resumo` pula essa etapa; `--sem-texto` não baixa as matérias;
 `--sem-banco` não lê nem grava no Supabase.
+
+## E-mail (Gmail)
+
+O e-mail sai pelo Gmail usando uma **senha de app** (não é a sua senha normal):
+
+1. Ative a verificação em duas etapas na conta Google (obrigatório para
+   senha de app): https://myaccount.google.com/signinoptions/twosv
+2. Crie a senha de app em https://myaccount.google.com/apppasswords (nome:
+   `n8news`). O Google mostra 16 letras; copie.
+3. No GitHub, crie os secrets:
+   - `GMAIL_USER`: seu endereço Gmail (remetente)
+   - `GMAIL_APP_PASSWORD`: a senha de app (com ou sem espaços)
+   - `EMAIL_PARA` (opcional): destinatários separados por vírgula; sem ele,
+     o e-mail vai para o próprio `GMAIL_USER`.
+
+O e-mail é enviado no horário agendado (06:50) ou ao rodar manualmente em
+*Actions → Buscar notícias → Run workflow*; não a cada mudança no código.
+Localmente: `python -m n8news --enviar-email` (ou `--salvar-email email.html`
+para só gerar o arquivo e conferir).
 
 ## Banco de dados (Supabase)
 

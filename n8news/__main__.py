@@ -13,6 +13,7 @@ from pathlib import Path
 from .artigo import baixar_textos
 from .banco import Supabase, id_noticia, reaproveitar
 from .busca import buscar_noticias, carregar_config
+from .envio import enviar_gmail, montar_email
 from .paises import carregar_paises
 from .resumo import carregar_config_ia, resumir_temas
 from .temas import carregar_temas, classificar
@@ -109,6 +110,8 @@ def main(argv=None) -> int:
     p.add_argument("--sem-resumo", action="store_true", help="não chama a IA para resumir")
     p.add_argument("--sem-texto", action="store_true", help="não baixa o texto das matérias")
     p.add_argument("--sem-banco", action="store_true", help="não lê nem grava no Supabase")
+    p.add_argument("--enviar-email", action="store_true", help="envia o e-mail do dia pelo Gmail")
+    p.add_argument("--salvar-email", metavar="ARQUIVO", help="salva o HTML do e-mail (para conferir)")
     p.add_argument("--refazer-resumos", action="store_true",
                    help="ignora os resumos já gravados e gera de novo (o texto continua reaproveitado)")
     p.add_argument("--horas", type=float, help="sobrescreve a janela de tempo do config")
@@ -148,6 +151,17 @@ def main(argv=None) -> int:
           f"(últimas {config.janela_horas:g}h)")
     for res in por_tema:
         print(f"Tema {res.tema.nome}: {len(res.noticias)} notícias")
+    if not args.todas and (args.enviar_email or args.salvar_email):
+        assunto, corpo_html, corpo_texto = montar_email(por_tema)
+        if args.salvar_email:
+            Path(args.salvar_email).write_text(corpo_html, encoding="utf-8")
+            print(f"E-mail salvo em {args.salvar_email}")
+        if args.enviar_email:
+            try:
+                para = enviar_gmail(assunto, corpo_html, corpo_texto)
+                print(f"E-mail enviado para {len(para)} destinatário(s): {assunto}")
+            except Exception as e:  # noqa: BLE001
+                avisos.append(f"E-mail não enviado: {e}")
     for aviso in avisos:
         print(f"AVISO: {aviso}")
 
