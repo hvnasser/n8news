@@ -51,6 +51,7 @@ class Tema:
     categorias: list[str] = field(default_factory=list)  # vazio = todas
     excluir: list[str] = field(default_factory=list)
     paises_permitidos: list[str] = field(default_factory=list)  # grupos (g10, em) ou códigos; vazio = todos
+    ia: dict = field(default_factory=dict)  # troca de modelo por tarefa só neste tema
     ativo: bool = True
 
     def __post_init__(self):

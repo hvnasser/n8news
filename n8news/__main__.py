@@ -14,7 +14,7 @@ from .artigo import baixar_textos
 from .banco import Supabase, id_noticia, reaproveitar
 from .busca import buscar_noticias, carregar_config
 from .paises import carregar_paises
-from .resumo import carregar_config_resumo, resumir_temas
+from .resumo import carregar_config_ia, resumir_temas
 from .temas import carregar_temas, classificar
 
 
@@ -91,7 +91,7 @@ def processar_temas(por_tema, args, timeout) -> list[str]:
         print(f"Texto das matérias: {ok} baixados")
 
     if not args.sem_resumo:
-        avisos += resumir_temas(por_tema, carregar_config_resumo(args.temas))
+        avisos += resumir_temas(por_tema, carregar_config_ia(args.temas))
 
     if banco:
         try:

@@ -5,7 +5,10 @@ import pytest
 
 from n8news.busca import Noticia
 from n8news.paises import carregar_paises, detectar, expandir_permitidos
-from n8news.resumo import ConfigResumo, resumir_temas
+from n8news.ia import ErroCredencial, ErroIA, OpenRouter
+from n8news.resumo import (
+    SCHEMA_RELEVANCIA, SCHEMA_RESUMO, ConfigIA, Tarefa, carregar_config_ia, resumir_temas,
+)
 from n8news.temas import carregar_temas, classificar
 from n8news.texto import normalizar
 
@@ -64,84 +67,159 @@ def test_tema_tira_paises_fora_da_lista(credito, paises):
     assert motivos["Ghana reaches debt restructuring deal with bondholders"] == "país fora da lista: GHA"
 
 
-class FakeClient:
-    """Imita client.beta.messages.create e guarda os parâmetros recebidos."""
+class FakeIA:
+    """Imita o cliente de IA (OpenRouter/Anthropic) e guarda as chamadas."""
 
     def __init__(self, respostas):
         self.respostas = list(respostas)
         self.chamadas = []
-        self.beta = SimpleNamespace(messages=SimpleNamespace(create=self._create))
 
-    def _create(self, **kwargs):
+    def json(self, **kwargs):
         self.chamadas.append(kwargs)
         r = self.respostas.pop(0)
         if isinstance(r, Exception):
             raise r
-        return r
+        return r(kwargs) if callable(r) else r
 
 
-def resposta(itens, stop_reason="end_turn"):
-    bloco = SimpleNamespace(type="text", text=json.dumps({"itens": itens}))
-    return SimpleNamespace(stop_reason=stop_reason, content=[bloco])
+def ecoa(campo, valor):
+    """Resposta que devolve `campo` para todos os ids recebidos."""
+    def f(kwargs):
+        ids = [n["id"] for n in json.loads(kwargs["usuario"])["noticias"]]
+        return {"itens": [{"id": i, campo: valor(i) if callable(valor) else valor} for i in ids]}
+    return f
 
 
-def test_resumo_preenche_e_remove_irrelevantes(credito, paises):
+def test_relevancia_e_resumo_com_modelos_separados(credito, paises):
     noticias = [
         noticia("Ri Happy pede recuperação extrajudicial", "A Ri Happy pediu RE para renegociar R$ 827 mi."),
         noticia("Empresa X pede recuperação judicial em tom de piada"),
     ]
     res = classificar(noticias, [credito], paises)
-    client = FakeClient([resposta([
-        {"id": 0, "resumo": "Ri Happy pede RE para renegociar R$ 827 milhões.", "relevante": True},
-        {"id": 1, "resumo": "...", "relevante": False},
-    ])])
-    avisos = resumir_temas(res, ConfigResumo(), client)
-    assert avisos == []
+    ia = FakeIA([
+        {"itens": [{"id": 0, "relevante": True}, {"id": 1, "relevante": False}]},
+        {"itens": [{"id": 0, "resumo": "Ri Happy pede RE para renegociar R$ 827 milhões."}]},
+    ])
+    cfg = ConfigIA(tarefas={"relevancia": Tarefa("modelo-barato"), "resumo": Tarefa("modelo-bom", esforco="high")})
+    assert resumir_temas(res, cfg, ia) == []
     assert [m.resumo_ia for m in res[0].noticias] == ["Ri Happy pede RE para renegociar R$ 827 milhões."]
     assert res[0].excluidas[-1][1] == "IA: fora do tema"
 
-    chamada = client.chamadas[0]
-    assert chamada["model"] == "claude-opus-5-5"
-    assert chamada["fallbacks"] == "default"
-    assert chamada["output_config"]["format"]["type"] == "json_schema"
-    entrada = json.loads(chamada["messages"][0]["content"])
-    assert entrada["tema"] == "Crédito"
-    assert entrada["noticias"][0]["trecho"].startswith("A Ri Happy")
+    rel, resu = ia.chamadas
+    assert rel["modelo"] == "modelo-barato" and rel["schema"] is SCHEMA_RELEVANCIA
+    assert resu["modelo"] == "modelo-bom" and resu["esforco"] == "high"
+    # o resumo só recebe a notícia que passou na relevância
+    assert [n["titulo"] for n in json.loads(resu["usuario"])["noticias"]] == ["Ri Happy pede recuperação extrajudicial"]
+    assert json.loads(rel["usuario"])["noticias"][0]["trecho"].startswith("A Ri Happy")
 
 
-def test_resumo_recusa_e_erro_nao_quebram(credito, paises):
-    import anthropic
+def test_tema_troca_modelo_de_uma_tarefa(credito, paises):
+    credito.ia = {"resumo": {"modelo": "modelo-do-tema"}}
+    try:
+        res = classificar([noticia("Ri Happy pede recuperação extrajudicial")], [credito], paises)
+        ia = FakeIA([ecoa("relevante", True), ecoa("resumo", "r")])
+        cfg = ConfigIA(tarefas={"relevancia": Tarefa("barato"), "resumo": Tarefa("padrao", esforco="medium")})
+        resumir_temas(res, cfg, ia)
+        assert [c["modelo"] for c in ia.chamadas] == ["barato", "modelo-do-tema"]
+        assert ia.chamadas[1]["esforco"] == "medium"  # o resto vem da tarefa padrão
+    finally:
+        credito.ia = {}
 
+
+def test_tarefa_desligada_e_noticia_ja_resumida(credito, paises):
+    res = classificar([noticia("Ri Happy pede recuperação extrajudicial"),
+                       noticia("Beta Ltda pede recuperação judicial")], [credito], paises)
+    res[0].noticias[0].resumo_ia = "já tinha"  # veio do banco
+    ia = FakeIA([ecoa("resumo", "novo")])
+    cfg = ConfigIA(tarefas={"relevancia": Tarefa("x", ativo=False), "resumo": Tarefa("y")})
+    resumir_temas(res, cfg, ia)
+    assert len(ia.chamadas) == 1  # só resumo, só da notícia nova
+    assert len(json.loads(ia.chamadas[0]["usuario"])["noticias"]) == 1
+    assert sorted(m.resumo_ia for m in res[0].noticias) == ["já tinha", "novo"]
+
+
+def test_erros_nao_quebram(credito, paises):
     res = classificar([noticia("Ri Happy pede recuperação extrajudicial")], [credito], paises)
-    client = FakeClient([resposta([], stop_reason="refusal")])
-    avisos = resumir_temas(res, ConfigResumo(), client)
-    assert "recusou" in avisos[0]
-    assert res[0].noticias[0].resumo_ia == ""
+    avisos = resumir_temas(res, ConfigIA(), FakeIA([ErroIA("modelo não existe"), ErroIA("limite")]))
+    assert len(avisos) == 2 and "modelo não existe" in avisos[0]
+    assert len(res[0].noticias) == 1 and res[0].noticias[0].resumo_ia == ""
 
-    erro = anthropic.APIConnectionError(request=SimpleNamespace(url="x", method="POST"))
-    avisos = resumir_temas(res, ConfigResumo(), FakeClient([erro]))
-    assert "erro na API" in avisos[0]
-    assert len(res[0].noticias) == 1
+    avisos = resumir_temas(res, ConfigIA(), FakeIA([ErroCredencial("chave inválida")]))
+    assert avisos == ["IA não rodou: chave inválida"]
+
+
+def test_sem_chave_openrouter(credito, paises, monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    res = classificar([noticia("Ri Happy pede recuperação extrajudicial")], [credito], paises)
+    avisos = resumir_temas(res, ConfigIA())
+    assert "OPENROUTER_API_KEY" in avisos[0]
 
 
 def test_lotes(credito, paises):
-    noticias = [noticia(f"Empresa{i} Ltda pede recuperação judicial") for i in range(5)]
+    noticias = [noticia(f"Empresa{i} pede recuperação judicial") for i in range(5)]
     res = classificar(noticias, [credito], paises)
     n = len(res[0].noticias)
-    lotes = [resposta([{"id": i, "resumo": f"r{i}", "relevante": True} for i in range(k)])
-             for k in (2, 2, 1)][: (n + 1) // 2]
-    client = FakeClient(lotes)
-    resumir_temas(res, ConfigResumo(max_por_chamada=2), client)
-    assert len(client.chamadas) == (n + 1) // 2
+    lotes = (n + 1) // 2
+    ia = FakeIA([ecoa("resumo", lambda i: f"r{i}")] * lotes)
+    cfg = ConfigIA(tarefas={"relevancia": Tarefa("x", ativo=False), "resumo": Tarefa("y")}, max_por_chamada=2)
+    resumir_temas(res, cfg, ia)
+    assert len(ia.chamadas) == lotes
     assert all(m.resumo_ia for m in res[0].noticias)
 
 
-def test_resumo_desligado(credito):
-    assert "desligado" in resumir_temas([], ConfigResumo(ativo=False))[0]
+def test_config_do_temas_yaml():
+    cfg = carregar_config_ia("temas.yaml")
+    assert cfg.provedor == "openrouter"
+    assert "/" in cfg.tarefa("relevancia").modelo and "/" in cfg.tarefa("resumo").modelo
 
 
-def test_sem_credencial_avisa(credito, paises):
-    res = classificar([noticia("Ri Happy pede recuperação extrajudicial")], [credito], paises)
-    avisos = resumir_temas(res, ConfigResumo(), FakeClient([TypeError("Could not resolve authentication method")]))
-    assert "ANTHROPIC_API_KEY" in avisos[0]
-    assert len(res[0].noticias) == 1
+# ------------------------------------------------------------ OpenRouter
+
+def resposta_or(conteudo, status=200):
+    return status, {"choices": [{"message": {"content": conteudo}, "finish_reason": "stop"}]}
+
+
+def test_openrouter_monta_pedido_e_le_json():
+    enviados = []
+
+    def enviar(corpo):
+        enviados.append(corpo)
+        return resposta_or('```json\n{"itens": [{"id": 0, "resumo": "ok"}]}\n```')
+
+    r = OpenRouter("sk-or-x", enviar=enviar).json(modelo="google/gemini-3.6-flash", sistema="S", usuario="U",
+                                                  schema=SCHEMA_RESUMO, esforco="low")
+    assert r == {"itens": [{"id": 0, "resumo": "ok"}]}
+    corpo = enviados[0]
+    assert corpo["model"] == "google/gemini-3.6-flash"
+    assert corpo["response_format"]["json_schema"]["schema"] is SCHEMA_RESUMO
+    assert corpo["reasoning"] == {"effort": "low"}
+    assert [m["role"] for m in corpo["messages"]] == ["system", "user"]
+
+
+def test_openrouter_modelo_sem_saida_estruturada():
+    enviados = []
+
+    def enviar(corpo):
+        enviados.append(dict(corpo))
+        if "response_format" in corpo:
+            return 400, {"error": {"message": "response_format json_schema is not supported"}}
+        return resposta_or('Aqui está: {"itens": []}')
+
+    assert OpenRouter("k", enviar=enviar).json(modelo="m", sistema="s", usuario="u", schema={}) == {"itens": []}
+    assert "response_format" in enviados[0] and "response_format" not in enviados[1]
+    assert "reasoning" not in enviados[0]
+
+
+def test_openrouter_erros():
+    with pytest.raises(ErroCredencial):
+        OpenRouter("k", enviar=lambda c: (401, {"error": {"message": "No auth"}})).json(
+            modelo="m", sistema="s", usuario="u", schema={})
+    with pytest.raises(ErroIA, match="not a valid model"):
+        OpenRouter("k", enviar=lambda c: (400, {"error": {"message": "x is not a valid model ID"}})).json(
+            modelo="x", sistema="s", usuario="u", schema={})
+    with pytest.raises(ErroIA, match="resposta inválida"):
+        OpenRouter("k", enviar=lambda c: resposta_or("não sei")).json(modelo="m", sistema="s", usuario="u", schema={})
+    # erro dentro de um 200 (acontece no OpenRouter)
+    with pytest.raises(ErroIA):
+        OpenRouter("k", enviar=lambda c: (200, {"error": {"message": "provider down"}})).json(
+            modelo="m", sistema="s", usuario="u", schema={})

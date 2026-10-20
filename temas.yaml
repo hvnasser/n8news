@@ -21,13 +21,29 @@
 #               (deixe vazio [] para procurar em todas)
 #   excluir:    notícia com qualquer uma destas palavras sai do tema
 
-# Resumo das notícias com o Claude (precisa da variável ANTHROPIC_API_KEY).
-# Sem a chave, o e-mail usa o trecho original do RSS.
-resumo:
-  ativo: true
-  modelo: claude-opus-5-5
-  esforco: medium              # low | medium | high (mais alto = mais caro)
-  remover_irrelevantes: true   # a IA tira notícias que não são do tema
+# IA: cada tarefa usa o modelo que você escolher.
+#
+# provedor: openrouter (padrão, chave OPENROUTER_API_KEY) ou anthropic
+#           (direto na Anthropic, chave ANTHROPIC_API_KEY).
+# Nomes dos modelos no OpenRouter: https://openrouter.ai/models
+#   (ex: anthropic/claude-opus-5.5, anthropic/claude-sonnet-5.5,
+#    anthropic/claude-haiku-5.5, openai/gpt-6-sol, google/gemini-3.6-flash,
+#    deepseek/deepseek-v4.1-flash). Na Anthropic direta: claude-opus-5-5 etc.
+# esforco: low | medium | high (só para modelos com raciocínio; apague a linha
+#          para usar o padrão do modelo). Mais alto = melhor e mais caro.
+# Sem chave, o e-mail sai com o trecho original do RSS.
+ia:
+  provedor: openrouter
+  remover_irrelevantes: true   # tira do tema o que a IA marcar como fora do tema
+  tarefas:
+    relevancia:                # confirma se a notícia é mesmo do tema
+      modelo: anthropic/claude-haiku-5.5
+      esforco: low
+      ativo: true
+    resumo:                    # resumo de 1-2 frases em português
+      modelo: anthropic/claude-opus-5.5
+      esforco: medium
+      ativo: true
 
 temas:
   - id: credito
@@ -37,6 +53,9 @@ temas:
     # Notícia que cita SÓ países fora daqui (ex: Gana, Sri Lanka) sai do tema.
     # Notícia sem país citado (ex: empresa brasileira em RJ) fica.
     paises_permitidos: [g10, em]
+    # Opcional: trocar o modelo de uma tarefa só neste tema. Ex:
+    # ia:
+    #   resumo: { modelo: anthropic/claude-sonnet-5.5 }
     excluir:
       # Dívida de pessoa física (feirões de renegociação etc).
       # Apague estas linhas se quiser receber esse tipo de notícia.

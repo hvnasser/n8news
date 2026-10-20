@@ -11,8 +11,8 @@ com link + resumo e filtros por tema (ex: escolher quais ações acompanhar).
 - [x] **2. Temas e filtros**: `temas.yaml` separa as notícias por tema.
       Primeiro tema: **Crédito** (spreads corporativos e soberanos, ratings,
       default, RJ/RE e renegociação de dívida).
-- [x] **3. Resumo das notícias** com o Claude (1–2 frases em português por
-      notícia) + filtro de países (G10 e principais emergentes).
+- [x] **3. Resumo das notícias** com IA via OpenRouter (modelo escolhido por
+      tarefa) + filtro de países (G10 e principais emergentes).
 - [x] **Banco de dados (Supabase)**: guarda cada notícia com data, texto,
       resumo, link e tema, para consultar depois.
 - [ ] 4. Montar e enviar o e-mail
@@ -84,16 +84,26 @@ fora (ex: Gana, Sri Lanka). Notícia que não cita país nenhum continua. Para
 aceitar um país específico, adicione o código (ex: `[g10, em, VEN]`) ou mude
 o grupo dele no `paises.yaml`.
 
-## Resumo com IA
+## IA: relevância e resumo
 
-Cada tema vai numa chamada ao Claude, que devolve um resumo de 1–2 frases em
-português por notícia e marca as que não são do tema (que saem do e-mail).
-Configuração no bloco `resumo:` do `temas.yaml`.
+Duas tarefas, cada uma com o modelo que você escolher (bloco `ia:` do
+`temas.yaml`):
 
-Precisa da chave da API da Anthropic:
-- **Local:** `export ANTHROPIC_API_KEY=sk-ant-...`
-- **GitHub Actions:** *Settings → Secrets and variables → Actions → New
-  repository secret*, nome `ANTHROPIC_API_KEY`.
+| Tarefa | O que faz | Padrão |
+|---|---|---|
+| `relevancia` | confirma se a notícia é mesmo do tema; as que não forem saem do e-mail | `anthropic/claude-haiku-5.5` (barato) |
+| `resumo` | 1–2 frases em português por notícia | `anthropic/claude-opus-5.5` |
+
+O acesso é pelo **OpenRouter** (um só cadastro para Claude, GPT, Gemini,
+DeepSeek...). Para trocar o modelo, mude `modelo:` com o nome que aparece em
+https://openrouter.ai/models. Um tema pode usar outro modelo só para ele
+(`ia:` dentro do tema). Para ir direto na Anthropic, use `provedor: anthropic`
+e nomes como `claude-opus-5-5`.
+
+Chave:
+- **GitHub Actions:** secret `OPENROUTER_API_KEY` (crie em
+  https://openrouter.ai/settings/keys).
+- **Local:** `export OPENROUTER_API_KEY=sk-or-...`
 
 Sem a chave tudo funciona, só que com o trecho original do RSS no lugar do
 resumo. `--sem-resumo` pula essa etapa; `--sem-texto` não baixa as matérias;

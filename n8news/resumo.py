@@ -1,76 +1,113 @@
-"""Etapa 3: resume as notícias de cada tema com o Claude.
+"""Etapa 3: IA sobre as notícias de cada tema, em duas tarefas.
 
-Uma chamada por tema (até `max_por_chamada` notícias por vez). O Claude devolve,
-para cada notícia, um resumo curto em português e se ela é mesmo do tema.
-Sem chave de API, ou se a chamada falhar, as notícias seguem com o trecho
-original do RSS.
+1. relevancia: confirma se a notícia é mesmo do tema (a palavra-chave pode ter
+   aparecido por acaso). Tarefa simples: dá para usar um modelo barato.
+2. resumo: 1-2 frases em português para cada notícia que ficou.
+
+Cada tarefa tem seu modelo (temas.yaml → ia.tarefas). Um tema pode trocar o
+modelo de uma tarefa só para ele (temas.yaml → tema.ia). Notícias que já
+têm resumo gravado no banco não passam pela IA de novo.
+
+Sem chave, ou se a chamada falhar, tudo segue com o trecho original do RSS.
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
 
+from .ia import ErroCredencial, ErroIA, criar_cliente
 from .temas import ResultadoTema
 
-SISTEMA = """Você resume notícias para um e-mail diário lido por um profissional de \
-mercado de crédito (crédito corporativo e soberano, Brasil e principais economias).
+CONTEXTO = """Você ajuda a montar um e-mail diário de notícias lido por um \
+profissional de mercado de crédito (crédito corporativo e soberano, Brasil e \
+principais economias). Você recebe o nome de um tema e uma lista de notícias \
+(id, título, fontes e, quando existe, um trecho do texto)."""
 
-Você recebe o nome de um tema e uma lista de notícias (título, fontes e, quando \
-existe, um trecho do texto). Para cada notícia:
+SISTEMA_RELEVANCIA = CONTEXTO + """
 
-- resumo: 1 a 2 frases em português do Brasil, no máximo 280 caracteres. Diga o \
-fato principal com os detalhes relevantes para crédito que estiverem no texto \
-(quem, valor, instrumento, prazo, credores, rating, país). Use só a informação \
-recebida: não invente números, datas nem desdobramentos. Se só houver o título, \
-escreva uma frase clara a partir dele, sem acrescentar fatos. Notícias em inglês \
-também são resumidas em português. Não comece com "A notícia" ou "O artigo".
-- relevante: true se a notícia é de fato sobre o tema; false se a palavra-chave \
-apareceu por acaso (sentido figurado, finanças pessoais, recomendação de ação, \
-assunto sem relação com dívida de empresas ou governos).
+Para cada notícia, diga se ela é de fato sobre o tema:
+- relevante: true se trata do tema; false se a palavra-chave apareceu por acaso \
+(sentido figurado, finanças pessoais, recomendação de investimento, política sem \
+efeito concreto sobre dívida de empresas ou governos, assunto sem relação).
 
 Devolva um item para cada notícia recebida, com o mesmo id."""
 
-SCHEMA = {
-    "type": "object",
-    "properties": {
-        "itens": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "id": {"type": "integer"},
-                    "resumo": {"type": "string"},
-                    "relevante": {"type": "boolean"},
-                },
-                "required": ["id", "resumo", "relevante"],
-                "additionalProperties": False,
-            },
-        }
-    },
-    "required": ["itens"],
-    "additionalProperties": False,
-}
+SISTEMA_RESUMO = CONTEXTO + """
 
+Para cada notícia, escreva o campo resumo: 1 a 2 frases em português do Brasil, \
+no máximo 280 caracteres. Diga o fato principal com os detalhes relevantes para \
+crédito que estiverem no texto (quem, valor, instrumento, prazo, credores, rating, \
+país). Use só a informação recebida: não invente números, datas nem \
+desdobramentos. Se só houver o título, escreva uma frase clara a partir dele, sem \
+acrescentar fatos. Notícias em inglês também são resumidas em português. Não \
+comece com "A notícia" ou "O artigo".
+
+Devolva um item para cada notícia recebida, com o mesmo id."""
+
+
+def _schema(campo: str, tipo: str) -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "itens": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {"id": {"type": "integer"}, campo: {"type": tipo}},
+                    "required": ["id", campo],
+                    "additionalProperties": False,
+                },
+            }
+        },
+        "required": ["itens"],
+        "additionalProperties": False,
+    }
+
+
+SCHEMA_RELEVANCIA = _schema("relevante", "boolean")
+SCHEMA_RESUMO = _schema("resumo", "string")
 
 TRECHO_MAX = 3000  # caracteres do texto da matéria enviados por notícia
 
 
 @dataclass
-class ConfigResumo:
+class Tarefa:
+    modelo: str
     ativo: bool = True
-    modelo: str = "claude-opus-5-5"
-    esforco: str = "medium"
+    esforco: str | None = None  # low | medium | high (modelos com raciocínio)
+
+
+TAREFAS_PADRAO = {
+    "relevancia": Tarefa("anthropic/claude-haiku-5.5", esforco="low"),
+    "resumo": Tarefa("anthropic/claude-opus-5.5", esforco="medium"),
+}
+
+
+@dataclass
+class ConfigIA:
+    provedor: str = "openrouter"
+    tarefas: dict[str, Tarefa] = field(default_factory=lambda: dict(TAREFAS_PADRAO))
     remover_irrelevantes: bool = True
     max_por_chamada: int = 40
 
+    def tarefa(self, nome: str, tema=None) -> Tarefa:
+        """Configuração da tarefa, com a troca de modelo do tema, se houver."""
+        base = self.tarefas.get(nome) or TAREFAS_PADRAO[nome]
+        troca = ((getattr(tema, "ia", None) or {}).get(nome)) or {}
+        return Tarefa(**{**base.__dict__, **troca})
 
-def carregar_config_resumo(caminho: str | Path = "temas.yaml") -> ConfigResumo:
+
+def carregar_config_ia(caminho: str | Path = "temas.yaml") -> ConfigIA:
     dados = yaml.safe_load(Path(caminho).read_text(encoding="utf-8")) or {}
-    return ConfigResumo(**(dados.get("resumo") or {}))
+    bruto = dict(dados.get("ia") or {})
+    tarefas = dict(TAREFAS_PADRAO)
+    for nome, valores in (bruto.pop("tarefas", None) or {}).items():
+        tarefas[nome] = Tarefa(**{**TAREFAS_PADRAO.get(nome, Tarefa("")).__dict__, **(valores or {})})
+    return ConfigIA(tarefas=tarefas, **bruto)
 
 
 def _entrada(tema: str, lote) -> str:
@@ -83,62 +120,68 @@ def _entrada(tema: str, lote) -> str:
     return json.dumps({"tema": tema, "noticias": noticias}, ensure_ascii=False)
 
 
-def resumir_temas(resultados: list[ResultadoTema], cfg: ConfigResumo, client=None) -> list[str]:
-    """Preenche `resumo_ia` de cada notícia. Devolve avisos (vazio = tudo ok)."""
-    if not cfg.ativo:
-        return ["resumo com IA desligado (temas.yaml → resumo.ativo)"]
-
-    import anthropic
-
-    if client is None:
+def _rodar(cliente, tarefa: Tarefa, sistema: str, schema: dict, campo: str, tema_nome: str,
+           noticias: list, tamanho: int, avisos: list[str], nome_tarefa: str):
+    """Chama o modelo em lotes e devolve {match: valor}."""
+    valores = {}
+    for inicio in range(0, len(noticias), tamanho):
+        lote = noticias[inicio : inicio + tamanho]
         try:
-            client = anthropic.Anthropic()
-        except anthropic.AnthropicError as e:
-            return [f"resumo com IA não rodou: {e}"]
+            dados = cliente.json(modelo=tarefa.modelo, sistema=sistema, usuario=_entrada(tema_nome, lote),
+                                 schema=schema, esforco=tarefa.esforco)
+            itens = dados["itens"]
+        except ErroCredencial:
+            raise
+        except (ErroIA, KeyError, TypeError) as e:
+            avisos.append(f"{tema_nome} / {nome_tarefa} ({tarefa.modelo}): {e}")
+            continue
+        for item in itens:
+            i = item.get("id") if isinstance(item, dict) else None
+            if isinstance(i, int) and 0 <= i < len(lote) and campo in item:
+                valores[id(lote[i])] = item[campo]
+    return valores
+
+
+def resumir_temas(resultados: list[ResultadoTema], cfg: ConfigIA, cliente=None) -> list[str]:
+    """Aplica relevância e resumo. Devolve avisos (vazio = tudo ok)."""
+    pendentes_total = sum(1 for r in resultados for m in r.noticias if not m.resumo_ia)
+    if not pendentes_total:
+        return []
+    if not any(cfg.tarefa(n).ativo for n in ("relevancia", "resumo")):
+        return ["IA desligada (temas.yaml → ia.tarefas)"]
+
+    if cliente is None:
+        try:
+            cliente = criar_cliente(cfg.provedor)
+        except (ErroCredencial, ErroIA) as e:
+            return [f"IA não rodou: {e}"]
 
     avisos: list[str] = []
-    for res in resultados:
-        noticias = [m for m in res.noticias if not m.resumo_ia]  # já resumidas: reaproveita
-        for inicio in range(0, len(noticias), cfg.max_por_chamada):
-            lote = noticias[inicio : inicio + cfg.max_por_chamada]
-            try:
-                resp = client.beta.messages.create(
-                    model=cfg.modelo,
-                    max_tokens=16000,
-                    betas=["server-side-fallback-2026-07-01"],
-                    fallbacks="default",
-                    output_config={
-                        "effort": cfg.esforco,
-                        "format": {"type": "json_schema", "schema": SCHEMA},
-                    },
-                    system=SISTEMA,
-                    messages=[{"role": "user", "content": _entrada(res.tema.nome, lote)}],
-                )
-            except (anthropic.AuthenticationError, TypeError):
-                # TypeError: o SDK não achou nenhuma credencial configurada
-                return avisos + ["resumo com IA não rodou: chave ANTHROPIC_API_KEY ausente ou inválida"]
-            except anthropic.APIError as e:
-                avisos.append(f"{res.tema.nome}: erro na API ({type(e).__name__}: {e})")
-                continue
+    try:
+        for res in resultados:
+            nome = res.tema.nome
+            pendentes = [m for m in res.noticias if not m.resumo_ia]  # já resumidas: reaproveita
 
-            if resp.stop_reason == "refusal":
-                avisos.append(f"{res.tema.nome}: o modelo recusou o pedido")
-                continue
-            texto = next((b.text for b in resp.content if b.type == "text"), "")
-            try:
-                itens = json.loads(texto)["itens"]
-            except (json.JSONDecodeError, KeyError, TypeError):
-                avisos.append(f"{res.tema.nome}: resposta inválida (stop_reason={resp.stop_reason})")
-                continue
+            relev = cfg.tarefa("relevancia", res.tema)
+            if relev.ativo and pendentes:
+                vals = _rodar(cliente, relev, SISTEMA_RELEVANCIA, SCHEMA_RELEVANCIA, "relevante",
+                              nome, pendentes, cfg.max_por_chamada, avisos, "relevância")
+                for m in pendentes:
+                    if id(m) in vals:
+                        m.relevante = bool(vals[id(m)])
+                if cfg.remover_irrelevantes:
+                    fora = [m for m in res.noticias if not m.relevante]
+                    res.noticias = [m for m in res.noticias if m.relevante]
+                    res.excluidas += [(m.noticia, "IA: fora do tema") for m in fora]
+                    pendentes = [m for m in pendentes if m.relevante]
 
-            for item in itens:
-                i = item.get("id")
-                if isinstance(i, int) and 0 <= i < len(lote):
-                    lote[i].resumo_ia = item.get("resumo", "").strip()
-                    lote[i].relevante = bool(item.get("relevante", True))
-
-        if cfg.remover_irrelevantes:
-            fora = [m for m in res.noticias if not m.relevante]
-            res.noticias = [m for m in res.noticias if m.relevante]
-            res.excluidas += [(m.noticia, "IA: fora do tema") for m in fora]
+            resumo = cfg.tarefa("resumo", res.tema)
+            if resumo.ativo and pendentes:
+                vals = _rodar(cliente, resumo, SISTEMA_RESUMO, SCHEMA_RESUMO, "resumo",
+                              nome, pendentes, cfg.max_por_chamada, avisos, "resumo")
+                for m in pendentes:
+                    if id(m) in vals:
+                        m.resumo_ia = str(vals[id(m)]).strip()
+    except ErroCredencial as e:
+        avisos.append(f"IA não rodou: {e}")
     return avisos
