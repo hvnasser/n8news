@@ -116,7 +116,7 @@ def test_relevancia_e_resumo_com_modelos_separados(credito, paises):
 def test_tema_troca_modelo_de_uma_tarefa(credito, paises):
     credito.ia = {"resumo": {"modelo": "modelo-do-tema"}}
     try:
-        res = classificar([noticia("Ri Happy pede recuperação extrajudicial")], [credito], paises)
+        res = classificar([noticia("Ri Happy pede recuperação extrajudicial", "trecho")], [credito], paises)
         ia = FakeIA([ecoa("relevante", True), ecoa("resumo", "r")])
         cfg = ConfigIA(tarefas={"relevancia": Tarefa("barato"), "resumo": Tarefa("padrao", esforco="medium")})
         resumir_temas(res, cfg, ia)
@@ -127,8 +127,8 @@ def test_tema_troca_modelo_de_uma_tarefa(credito, paises):
 
 
 def test_tarefa_desligada_e_noticia_ja_resumida(credito, paises):
-    res = classificar([noticia("Ri Happy pede recuperação extrajudicial"),
-                       noticia("Beta Ltda pede recuperação judicial")], [credito], paises)
+    res = classificar([noticia("Ri Happy pede recuperação extrajudicial", "trecho"),
+                       noticia("Beta Ltda pede recuperação judicial", "trecho")], [credito], paises)
     res[0].noticias[0].resumo_ia = "já tinha"  # veio do banco
     ia = FakeIA([ecoa("resumo", "novo")])
     cfg = ConfigIA(tarefas={"relevancia": Tarefa("x", ativo=False), "resumo": Tarefa("y")})
@@ -139,13 +139,62 @@ def test_tarefa_desligada_e_noticia_ja_resumida(credito, paises):
 
 
 def test_erros_nao_quebram(credito, paises):
-    res = classificar([noticia("Ri Happy pede recuperação extrajudicial")], [credito], paises)
+    res = classificar([noticia("Ri Happy pede recuperação extrajudicial", "trecho")], [credito], paises)
     avisos = resumir_temas(res, ConfigIA(), FakeIA([ErroIA("modelo não existe"), ErroIA("limite")]))
     assert len(avisos) == 2 and "modelo não existe" in avisos[0]
     assert len(res[0].noticias) == 1 and res[0].noticias[0].resumo_ia == ""
 
     avisos = resumir_temas(res, ConfigIA(), FakeIA([ErroCredencial("chave inválida")]))
     assert avisos == ["IA não rodou: chave inválida"]
+
+
+def test_so_titulo_vira_resumo_sem_ia(credito, paises):
+    res = classificar([noticia("Ares Warns of Australian Private Credit Stress"),
+                       noticia("Ri Happy pede recuperação extrajudicial", "A Ri Happy pediu RE.")], [credito], paises)
+    ia = FakeIA([ecoa("relevante", True), ecoa("resumo", "resumo da IA")])
+    resumir_temas(res, ConfigIA(), ia)
+    resumos = {m.noticia.titulo: m.resumo_ia for m in res[0].noticias}
+    assert resumos["Ares Warns of Australian Private Credit Stress"] == "Ares Warns of Australian Private Credit Stress"
+    assert resumos["Ri Happy pede recuperação extrajudicial"] == "resumo da IA"
+    # a relevância vê as duas; o resumo só a que tem texto
+    assert len(json.loads(ia.chamadas[0]["usuario"])["noticias"]) == 2
+    assert [n["titulo"] for n in json.loads(ia.chamadas[1]["usuario"])["noticias"]] == ["Ri Happy pede recuperação extrajudicial"]
+
+
+def test_so_titulo_sem_nenhuma_chamada_de_resumo(credito, paises):
+    res = classificar([noticia("Beta Ltda pede recuperação judicial")], [credito], paises)
+    ia = FakeIA([ecoa("relevante", True)])
+    assert resumir_temas(res, ConfigIA(), ia) == []
+    assert len(ia.chamadas) == 1  # só relevância
+    assert res[0].noticias[0].resumo_ia == "Beta Ltda pede recuperação judicial"
+
+
+def test_opiniao_ganha_prefixo_com_autor(credito, paises):
+    n1 = noticia("Ajuste fiscal requer liderança política e dívida pública controlada", "As contas públicas...")
+    n1.autor = "Fulano de Tal"
+    n2 = noticia("Opinion | The sovereign debt reckoning is coming")  # só título
+    n3 = noticia("Ri Happy pede recuperação extrajudicial", "A Ri Happy pediu RE.")
+    res = classificar([n1, n2, n3], [credito], paises)
+    titulos = [m.noticia.titulo for m in res[0].noticias]
+
+    def relev(kwargs):
+        itens = []
+        for n in json.loads(kwargs["usuario"])["noticias"]:
+            t = n["titulo"]
+            itens.append({"id": n["id"], "relevante": True,
+                          "opiniao": not t.startswith("Ri Happy"),
+                          "autor": n.get("autor", "") if t.startswith("Ajuste") else ""})
+        return {"itens": itens}
+
+    ia = FakeIA([relev, ecoa("resumo", "Resumo.")])
+    resumir_temas(res, ConfigIA(), ia)
+    r = {m.noticia.titulo: m.resumo_ia for m in res[0].noticias}
+    assert r[n1.titulo] == "Opinião — Fulano de Tal: Resumo."
+    assert r[n2.titulo] == "Opinião (autor não identificado): Opinion | The sovereign debt reckoning is coming"
+    assert r[n3.titulo] == "Resumo."
+    enviado = json.loads(ia.chamadas[0]["usuario"])["noticias"]
+    assert any(n.get("autor") == "Fulano de Tal" for n in enviado)
+    assert len(titulos) == 3
 
 
 def test_sem_chave_openrouter(credito, paises, monkeypatch):
@@ -156,7 +205,7 @@ def test_sem_chave_openrouter(credito, paises, monkeypatch):
 
 
 def test_lotes(credito, paises):
-    noticias = [noticia(f"Empresa{i} pede recuperação judicial") for i in range(5)]
+    noticias = [noticia(f"Empresa{i} pede recuperação judicial", "trecho") for i in range(5)]
     res = classificar(noticias, [credito], paises)
     n = len(res[0].noticias)
     lotes = (n + 1) // 2

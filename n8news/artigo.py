@@ -16,18 +16,27 @@ from .busca import Noticia, baixar
 MAX_CARACTERES = 20000
 
 
+def extrair(html: bytes | str) -> tuple[str, str]:
+    """Devolve (texto principal, autor) da página."""
+    doc = trafilatura.bare_extraction(html, with_metadata=True, include_comments=False,
+                                      include_tables=False, favor_precision=True)
+    if not doc:
+        return "", ""
+    return (getattr(doc, "text", "") or "").strip(), (getattr(doc, "author", "") or "").strip()
+
+
 def extrair_texto(html: bytes | str) -> str:
-    texto = trafilatura.extract(html, include_comments=False, include_tables=False, favor_precision=True)
-    return (texto or "").strip()
+    return extrair(html)[0]
 
 
-def _texto_da_noticia(n: Noticia, timeout: float, baixar_fn) -> str:
+def _texto_da_noticia(n: Noticia, timeout: float, baixar_fn) -> tuple[str, str]:
     if "news.google.com" in n.link:
-        return ""
+        return "", ""
     try:
-        return extrair_texto(baixar_fn(n.link, timeout))[:MAX_CARACTERES]
+        texto, autor = extrair(baixar_fn(n.link, timeout))
+        return texto[:MAX_CARACTERES], autor
     except Exception:  # noqa: BLE001 - página fora do ar não pode parar o robô
-        return ""
+        return "", ""
 
 
 def baixar_textos(noticias: list[Noticia], timeout: float = 15, baixar_fn=baixar) -> int:
@@ -36,7 +45,9 @@ def baixar_textos(noticias: list[Noticia], timeout: float = 15, baixar_fn=baixar
     with ThreadPoolExecutor(max_workers=8) as pool:
         textos = list(pool.map(lambda n: _texto_da_noticia(n, timeout, baixar_fn), pendentes))
     ok = 0
-    for n, texto in zip(pendentes, textos):
+    for n, (texto, autor) in zip(pendentes, textos):
+        if autor and not n.autor:
+            n.autor = autor
         # Só vale se trouxer mais que o trecho do RSS
         if len(texto) > len(n.resumo) + 80:
             n.texto = texto

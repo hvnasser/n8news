@@ -79,7 +79,7 @@ def processar_temas(por_tema, args, timeout) -> list[str]:
     if banco:
         try:
             existentes = banco.existentes(list({id_noticia(m.noticia.link) for m in principais}))
-            n = reaproveitar(por_tema, existentes)
+            n = reaproveitar(por_tema, existentes, resumos=not args.refazer_resumos)
             print(f"Banco: {len(existentes)} notícias já gravadas ({n} resumos reaproveitados)")
         except Exception as e:  # noqa: BLE001
             # Sem conseguir ler, não grava (evita apagar resumos antigos)
@@ -109,6 +109,8 @@ def main(argv=None) -> int:
     p.add_argument("--sem-resumo", action="store_true", help="não chama a IA para resumir")
     p.add_argument("--sem-texto", action="store_true", help="não baixa o texto das matérias")
     p.add_argument("--sem-banco", action="store_true", help="não lê nem grava no Supabase")
+    p.add_argument("--refazer-resumos", action="store_true",
+                   help="ignora os resumos já gravados e gera de novo (o texto continua reaproveitado)")
     p.add_argument("--horas", type=float, help="sobrescreve a janela de tempo do config")
     p.add_argument("--todas", action="store_true", help="lista todas as notícias, sem separar por tema")
     p.add_argument("--json", metavar="ARQUIVO", help="salva notícias e temas em JSON")

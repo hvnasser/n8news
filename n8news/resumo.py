@@ -2,7 +2,10 @@
 
 1. relevancia: confirma se a notícia é mesmo do tema (a palavra-chave pode ter
    aparecido por acaso). Tarefa simples: dá para usar um modelo barato.
-2. resumo: 1-2 frases em português para cada notícia que ficou.
+   Também marca artigos de opinião e quem assina.
+2. resumo: 1-2 frases em português para cada notícia que ficou. Notícia sem
+   texto (só título) não vai para a IA: o resumo é o próprio título.
+   Opinião ganha o prefixo "Opinião — <autor>:".
 
 Cada tarefa tem seu modelo (temas.yaml → ia.tarefas). Um tema pode trocar o
 modelo de uma tarefa só para ele (temas.yaml → tema.ia). Notícias que já
@@ -29,10 +32,16 @@ principais economias). Você recebe o nome de um tema e uma lista de notícias \
 
 SISTEMA_RELEVANCIA = CONTEXTO + """
 
-Para cada notícia, diga se ela é de fato sobre o tema:
+Para cada notícia, responda:
 - relevante: true se trata do tema; false se a palavra-chave apareceu por acaso \
 (sentido figurado, finanças pessoais, recomendação de investimento, política sem \
 efeito concreto sobre dívida de empresas ou governos, assunto sem relação).
+- opiniao: true se é artigo de opinião, coluna, editorial ou análise assinada \
+(não reportagem). Pistas: "opinião", "coluna", "editorial", "Opinion |", \
+"/opiniao/" ou "/colunas/" no link, texto em primeira pessoa com argumentação.
+- autor: nome de quem assina a opinião (pessoa, ou "Editorial do <jornal>" para \
+editoriais), usando o campo autor ou o texto. Deixe vazio se não for opinião \
+ou se não houver como saber. Não invente nomes.
 
 Devolva um item para cada notícia recebida, com o mesmo id."""
 
@@ -68,7 +77,27 @@ def _schema(campo: str, tipo: str) -> dict:
     }
 
 
-SCHEMA_RELEVANCIA = _schema("relevante", "boolean")
+SCHEMA_RELEVANCIA = {
+    "type": "object",
+    "properties": {
+        "itens": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "integer"},
+                    "relevante": {"type": "boolean"},
+                    "opiniao": {"type": "boolean"},
+                    "autor": {"type": "string"},
+                },
+                "required": ["id", "relevante", "opiniao", "autor"],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["itens"],
+    "additionalProperties": False,
+}
 SCHEMA_RESUMO = _schema("resumo", "string")
 
 TRECHO_MAX = 3000  # caracteres do texto da matéria enviados por notícia
@@ -110,13 +139,28 @@ def carregar_config_ia(caminho: str | Path = "temas.yaml") -> ConfigIA:
     return ConfigIA(tarefas=tarefas, **bruto)
 
 
+def _trecho(m) -> str:
+    """Texto disponível da notícia: matéria, trecho do RSS ou de outro jornal."""
+    n = m.noticia
+    return n.texto or n.resumo or next((r.resumo for r in m.relacionadas if r.resumo), "")
+
+
+def _com_opiniao(resumo: str, autor: str) -> str:
+    rotulo = f"Opinião — {autor}" if autor else "Opinião (autor não identificado)"
+    return f"{rotulo}: {resumo}"
+
+
 def _entrada(tema: str, lote) -> str:
     noticias = []
     for i, m in enumerate(lote):
         n = m.noticia
         fontes = list(dict.fromkeys(n.fontes + [f for r in m.relacionadas for f in r.fontes]))
-        trecho = n.texto[:TRECHO_MAX] or n.resumo or next((r.resumo for r in m.relacionadas if r.resumo), "")
-        noticias.append({"id": i, "titulo": n.titulo, "fontes": fontes, "trecho": trecho})
+        item = {"id": i, "titulo": n.titulo, "fontes": fontes, "trecho": _trecho(m)[:TRECHO_MAX]}
+        if n.autor:
+            item["autor"] = n.autor
+        if "news.google.com" not in n.link:
+            item["link"] = n.link
+        noticias.append(item)
     return json.dumps({"tema": tema, "noticias": noticias}, ensure_ascii=False)
 
 
@@ -138,7 +182,7 @@ def _rodar(cliente, tarefa: Tarefa, sistema: str, schema: dict, campo: str, tema
         for item in itens:
             i = item.get("id") if isinstance(item, dict) else None
             if isinstance(i, int) and 0 <= i < len(lote) and campo in item:
-                valores[id(lote[i])] = item[campo]
+                valores[id(lote[i])] = item
     return valores
 
 
@@ -163,25 +207,39 @@ def resumir_temas(resultados: list[ResultadoTema], cfg: ConfigIA, cliente=None) 
             pendentes = [m for m in res.noticias if not m.resumo_ia]  # já resumidas: reaproveita
 
             relev = cfg.tarefa("relevancia", res.tema)
+            opiniao: dict[int, str] = {}  # id(match) -> autor
             if relev.ativo and pendentes:
                 vals = _rodar(cliente, relev, SISTEMA_RELEVANCIA, SCHEMA_RELEVANCIA, "relevante",
                               nome, pendentes, cfg.max_por_chamada, avisos, "relevância")
                 for m in pendentes:
-                    if id(m) in vals:
-                        m.relevante = bool(vals[id(m)])
+                    item = vals.get(id(m))
+                    if item:
+                        m.relevante = bool(item["relevante"])
+                        if item.get("opiniao"):
+                            opiniao[id(m)] = str(item.get("autor") or m.noticia.autor or "").strip()
                 if cfg.remover_irrelevantes:
                     fora = [m for m in res.noticias if not m.relevante]
                     res.noticias = [m for m in res.noticias if m.relevante]
                     res.excluidas += [(m.noticia, "IA: fora do tema") for m in fora]
                     pendentes = [m for m in pendentes if m.relevante]
 
+            # Só título (sem texto nem trecho): o resumo é o próprio título, sem IA
+            so_titulo = [m for m in pendentes if not _trecho(m).strip()]
+            for m in so_titulo:
+                m.resumo_ia = m.noticia.titulo
+            com_texto = [m for m in pendentes if m not in so_titulo]
+
             resumo = cfg.tarefa("resumo", res.tema)
-            if resumo.ativo and pendentes:
+            if resumo.ativo and com_texto:
                 vals = _rodar(cliente, resumo, SISTEMA_RESUMO, SCHEMA_RESUMO, "resumo",
-                              nome, pendentes, cfg.max_por_chamada, avisos, "resumo")
-                for m in pendentes:
+                              nome, com_texto, cfg.max_por_chamada, avisos, "resumo")
+                for m in com_texto:
                     if id(m) in vals:
-                        m.resumo_ia = str(vals[id(m)]).strip()
+                        m.resumo_ia = str(vals[id(m)]["resumo"]).strip()
+
+            for m in pendentes:
+                if id(m) in opiniao and m.resumo_ia:
+                    m.resumo_ia = _com_opiniao(m.resumo_ia, opiniao[id(m)])
     except ErroCredencial as e:
         avisos.append(f"IA não rodou: {e}")
     return avisos

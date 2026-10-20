@@ -115,7 +115,7 @@ def linha_noticia(nid: str, m: Match, agora: str) -> dict:
     }
 
 
-def reaproveitar(resultados: list[ResultadoTema], existentes: dict[str, dict]) -> int:
+def reaproveitar(resultados: list[ResultadoTema], existentes: dict[str, dict], resumos: bool = True) -> int:
     """Copia resumo/texto já gravados para não baixar nem resumir de novo."""
     n = 0
     for res in resultados:
@@ -123,7 +123,7 @@ def reaproveitar(resultados: list[ResultadoTema], existentes: dict[str, dict]) -
             linha = existentes.get(id_noticia(m.noticia.link))
             if not linha:
                 continue
-            if linha.get("resumo_ia") and not m.resumo_ia:
+            if resumos and linha.get("resumo_ia") and not m.resumo_ia:
                 m.resumo_ia = linha["resumo_ia"]
                 n += 1
             if linha.get("texto") and not m.noticia.texto:

@@ -56,6 +56,7 @@ class Noticia:
     categorias: list[str] = field(default_factory=list)
     imagem: str | None = None
     texto: str = ""  # texto extraído da página (etapa de artigo)
+    autor: str = ""  # autor indicado no RSS ou na página
 
     def to_dict(self) -> dict:
         d = self.__dict__.copy()
@@ -246,6 +247,7 @@ def buscar_noticias(config: Config, agora: datetime | None = None, baixar_fn=bai
                 fontes=[fonte],
                 categorias=[feed.categoria],
                 imagem=imagem_da_entrada(entrada),
+                autor=limpar_texto(entrada.get("author")),
             )
             por_link[k_link] = n
             por_titulo[k_titulo] = n

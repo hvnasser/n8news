@@ -83,7 +83,7 @@ def test_do_ambiente(monkeypatch):
     assert Supabase.do_ambiente().base == "https://abc.supabase.co/rest/v1"
 
 
-HTML = """<html><head><title>Ri Happy</title></head><body>
+HTML = """<html><head><title>Ri Happy</title><meta name="author" content="Maria Souza"></head><body>
 <nav>Menu Home Economia Política</nav>
 <article><h1>Ri Happy pede recuperação extrajudicial</h1>
 <p>A Ri Happy e outras cinco empresas do grupo entraram com um pedido de recuperação extrajudicial
@@ -113,6 +113,7 @@ def test_baixar_textos_pula_google_e_erros():
 
     assert baixar_textos([ok, google, fora], baixar_fn=baixar) == 1
     assert "827,4" in ok.texto and google.texto == "" and fora.texto == ""
+    assert ok.autor == "Maria Souza"
 
 
 def test_url_com_ou_sem_rest_v1():
