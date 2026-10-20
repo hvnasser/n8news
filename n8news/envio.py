@@ -116,16 +116,16 @@ def montar_email(resultados: list[ResultadoTema], agora: datetime | None = None,
     total = sum(len(r.noticias) for r in resultados)
     nomes = ", ".join(r.tema.nome for r in resultados if r.noticias)
     hora = agora.strftime("%Hh%M")
-    assunto = (f"N8News {data} {hora} — {nomes}: {_qtd(total)}" if total
-               else f"N8News {data} {hora} — sem notícias novas")
+    assunto = (f"Notícias {data} {hora} — {nomes}: {_qtd(total)}" if total
+               else f"Notícias {data} {hora} — sem notícias novas")
 
     e = html.escape
     partes = [
         '<div style="font-family:Arial,Helvetica,sans-serif;max-width:680px;margin:0 auto;color:#1f2328;">',
-        f'<h1 style="font-size:20px;margin:0 0 4px;">N8News — {e(data)}</h1>',
+        f'<h1 style="font-size:20px;margin:0 0 4px;">Notícias — {e(data)}</h1>',
         f'<p style="margin:0 0 20px;color:#59636e;font-size:13px;">{_qtd(total)}{e(_desde(desde))}</p>',
     ]
-    texto = [f"N8News — {data} — {_qtd(total)}{_desde(desde)}", ""]
+    texto = [f"Notícias — {data} — {_qtd(total)}{_desde(desde)}", ""]
 
     for res in resultados:
         if not res.noticias:
@@ -147,7 +147,7 @@ def montar_email(resultados: list[ResultadoTema], agora: datetime | None = None,
     if not total:
         partes.append("<p>Nenhuma notícia nova nos temas hoje.</p>")
         texto.append("Nenhuma notícia nova nos temas hoje.")
-    partes.append('<p style="font-size:11px;color:#8c959f;margin-top:28px;">Gerado automaticamente pelo N8News.</p></div>')
+    partes.append('<p style="font-size:11px;color:#8c959f;margin-top:28px;">Gerado automaticamente.</p></div>')
     return assunto, "\n".join(partes), "\n".join(texto)
 
 
@@ -161,7 +161,7 @@ def enviar_gmail(assunto: str, corpo_html: str, corpo_texto: str, smtp_factory=s
 
     msg = EmailMessage()
     msg["Subject"] = assunto
-    msg["From"] = f"N8News <{usuario}>"
+    msg["From"] = f"Notícias <{usuario}>"
     msg["To"] = ", ".join(para)
     msg.set_content(corpo_texto)
     msg.add_alternative(corpo_html, subtype="html")

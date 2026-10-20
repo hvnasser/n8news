@@ -1,8 +1,8 @@
-# N8News — notícias por e-mail
+# Notícias
 
 Script em Python que busca notícias nos feeds RSS dos principais jornais do
-Brasil e do mundo e (nas próximas etapas) envia um e-mail organizado por temas,
-com link + resumo e filtros por tema (ex: escolher quais ações acompanhar).
+Brasil e do mundo, separa por temas e filtros, resume com IA e publica um
+painel no GitHub Pages (o envio por e-mail continua disponível).
 
 ## Etapas
 
@@ -17,8 +17,11 @@ com link + resumo e filtros por tema (ex: escolher quais ações acompanhar).
       resumo, link e tema, para consultar depois.
 - [x] **4. E-mail pelo Gmail**: notícias do dia por tema e filtro, com link,
       fonte, horário (Brasília) e resumo.
-- [x] **5. Agendado** todo dia às 06:50 (Brasília) pelo GitHub Actions
-      (vale depois que o código estiver no branch principal).
+- [x] **5. Agendado** 3x por dia (06:50, 12:50 e 18:50, Brasília) pelo
+      GitHub Actions (vale depois que o código estiver no branch principal).
+- [x] **6. Painel no GitHub Pages**: página com as notícias dos últimos 30
+      dias, busca, período, Brasil/Mundo e "só novas desde a última visita".
+      O e-mail fica desligado (dá para religar, veja abaixo).
 
 ## Rodar
 
@@ -118,7 +121,32 @@ Sem a chave tudo funciona, só que com o trecho original do RSS no lugar do
 resumo. `--sem-resumo` pula essa etapa; `--sem-texto` não baixa as matérias;
 `--sem-banco` não lê nem grava no Supabase.
 
-## E-mail (Gmail)
+## Painel (GitHub Pages)
+
+Cada execução gera `site/index.html` com as notícias do Supabase dos últimos
+30 dias (`--painel-dias` muda) mais as da execução atual, e o GitHub publica
+a página. O texto completo das matérias **não** vai para o painel (só título,
+link, fonte, data e resumo).
+
+Para ligar (uma vez):
+
+1. *Settings → Pages → Build and deployment → Source*: **GitHub Actions**.
+2. O endereço fica `https://<usuário>.github.io/<nome do repositório>/`.
+   Para ser `.../noticias/`, renomeie o repositório para `noticias`
+   (*Settings → General → Repository name*).
+3. A publicação só acontece a partir do branch principal.
+
+Atenção: no plano gratuito o GitHub Pages é **público** (qualquer pessoa com
+o link vê; a página pede para não ser indexada por buscadores).
+
+Localmente: `python -m n8news --painel site` e abra `site/index.html`.
+
+## E-mail (Gmail) — desligado, fácil de religar
+
+Para voltar a receber por e-mail: crie os secrets do Gmail (abaixo) e a
+variável `ENVIAR_EMAIL` = `true` em *Settings → Secrets and variables →
+Actions → Variables*. O painel continua sendo publicado junto. Para desligar
+de novo, apague a variável ou mude para `false`.
 
 O e-mail sai pelo Gmail usando uma **senha de app** (não é a sua senha normal):
 
@@ -144,7 +172,7 @@ enviadas (ficam marcadas no Supabase). Funciona com um ou dois e-mails por dia.
 Se não houver nada novo, o e-mail não é enviado. Requer rodar uma vez no
 Supabase o arquivo `supabase/migracoes/002_envios.sql` (SQL Editor → Run).
 
-O e-mail é enviado no horário agendado (06:50) ou ao rodar manualmente em
+O e-mail é enviado nos horários agendados ou ao rodar manualmente em
 *Actions → Buscar notícias → Run workflow*; não a cada mudança no código.
 Localmente: `python -m n8news --enviar-email` (ou `--salvar-email email.html`
 para só gerar o arquivo e conferir).

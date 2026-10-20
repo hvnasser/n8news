@@ -80,6 +80,20 @@ class Supabase:
                 achadas[linha["id"]] = linha
         return achadas
 
+    def historico(self, desde: datetime) -> list[dict]:
+        """Notícias classificadas em temas desde a data (para o painel).
+        Uma linha por notícia+tema, com os dados da notícia embutidos."""
+        campos = "id,titulo,link,fontes,outros_links,paises,publicado_em,coletado_em,resumo_ia"
+        base = (f"/noticias_temas?select=tema,filtros,criado_em,noticias({campos})"
+                f"&criado_em=gte.{desde.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}"
+                f"&order=criado_em.desc")
+        linhas, pagina = [], 1000
+        while True:
+            lote = self._enviar("GET", f"{base}&limit={pagina}&offset={len(linhas)}", None, self._headers()) or []
+            linhas += lote
+            if len(lote) < pagina:
+                return linhas
+
     def ultimo_envio(self) -> datetime | None:
         """Data do último e-mail enviado (None se nunca enviou ou sem controle)."""
         if not self.controle_envio:

@@ -29,7 +29,7 @@ def resultado():
 
 def test_monta_email_por_tema_e_filtro():
     assunto, corpo, texto = montar_email(resultado(), AGORA)
-    assert assunto == "N8News 20/10/2026 06h50 — Crédito: 3 notícias"
+    assert assunto == "Notícias 20/10/2026 06h50 — Crédito: 3 notícias"
     # ordem dos filtros do tema; dentro do filtro, mais recente primeiro
     assert corpo.index("Spreads corporativos") < corpo.index("Default e calote")
     assert corpo.index("Debêntures batem recorde") < corpo.index("Ares Warns")

@@ -14,6 +14,7 @@ from .artigo import baixar_textos
 from .banco import Supabase, id_noticia, reaproveitar
 from .busca import buscar_noticias, carregar_config
 from .envio import enviar_gmail, montar_email, selecionar_novas
+from .painel import gerar_painel
 from .paises import carregar_paises
 from .resumo import carregar_config_ia, resumir_temas
 from .temas import carregar_temas, classificar
@@ -148,6 +149,8 @@ def main(argv=None) -> int:
     p.add_argument("--sem-resumo", action="store_true", help="não chama a IA para resumir")
     p.add_argument("--sem-texto", action="store_true", help="não baixa o texto das matérias")
     p.add_argument("--sem-banco", action="store_true", help="não lê nem grava no Supabase")
+    p.add_argument("--painel", metavar="PASTA", help="gera o painel (index.html) nesta pasta")
+    p.add_argument("--painel-dias", type=int, default=30, help="dias de histórico no painel (padrão: 30)")
     p.add_argument("--enviar-email", action="store_true", help="envia o e-mail do dia pelo Gmail")
     p.add_argument("--salvar-email", metavar="ARQUIVO", help="salva o HTML do e-mail (para conferir)")
     p.add_argument("--refazer-resumos", action="store_true",
@@ -189,6 +192,10 @@ def main(argv=None) -> int:
           f"(últimas {config.janela_horas:g}h)")
     for res in por_tema:
         print(f"Tema {res.tema.nome}: {len(res.noticias)} notícias")
+    if not args.todas and args.painel:
+        arquivo, qtd, av = gerar_painel(args.painel, temas, por_tema, banco, args.painel_dias)
+        avisos += av
+        print(f"Painel: {qtd} notícias em {arquivo}")
     if not args.todas and (args.enviar_email or args.salvar_email):
         avisos += processar_email(por_tema, args, banco, ja_enviadas)
     for aviso in avisos:
