@@ -37,11 +37,11 @@ ia:
   remover_irrelevantes: true   # tira do tema o que a IA marcar como fora do tema
   tarefas:
     relevancia:                # confirma se a notícia é mesmo do tema
-      modelo: anthropic/claude-haiku-5.5
+      modelo: deepseek/deepseek-v4.1-flash
       esforco: low
       ativo: true
     resumo:                    # resumo de 1-2 frases em português
-      modelo: anthropic/claude-opus-5.5
+      modelo: deepseek/deepseek-v4.1-flash
       esforco: medium
       ativo: true
 
