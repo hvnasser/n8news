@@ -94,6 +94,13 @@ Duas tarefas, cada uma com o modelo que você escolher (bloco `ia:` do
 | `relevancia` | confirma se a notícia é mesmo do tema; as que não forem saem do e-mail | `anthropic/claude-haiku-5.5` (barato) |
 | `resumo` | 1–2 frases em português por notícia | `anthropic/claude-opus-5.5` |
 
+- Notícia **só com título** (sem texto nem trecho, comum no Google News) não
+  passa pela IA de resumo: o resumo é o próprio título.
+- **Opinião** (colunas, editoriais, análises assinadas) continua no e-mail,
+  com o resumo começando por "Opinião — Fulano:". Quem marca é a tarefa de
+  relevância.
+- `--refazer-resumos` gera de novo os resumos de notícias já gravadas.
+
 O acesso é pelo **OpenRouter** (um só cadastro para Claude, GPT, Gemini,
 DeepSeek...). Para trocar o modelo, mude `modelo:` com o nome que aparece em
 https://openrouter.ai/models. Um tema pode usar outro modelo só para ele
