@@ -77,3 +77,48 @@ def test_consulta_historico_pagina():
     assert len(linhas) == 1003
     assert "noticias_temas?select=tema,filtros,criado_em,noticias(" in chamadas[0]
     assert "criado_em=gte.2026-10-20T18:00:00Z" in chamadas[0] and "offset=1000" in chamadas[1]
+
+
+def _itens(titulos, filtro="Recuperação judicial"):
+    return [{"tema": "credito", "filtro": filtro, "titulo": t, "link": f"https://x/{n}", "fontes": [f"F{n}"],
+             "outros": [], "paises": [], "publicado": f"2026-10-20T{10 + n:02d}:00:00+00:00",
+             "coletado": None, "resumo": "", "regiao": "brasil", "id": str(n)}
+            for n, t in enumerate(titulos)]
+
+
+def test_painel_junta_mesmo_assunto_do_historico():
+    from n8news.painel import agrupar_assuntos
+    itens = _itens([
+        "Justiça encerra recuperação judicial da Americanas",
+        "Americanas sobe forte na bolsa com encerramento da RJ",
+        "Ações da Americanas disparam mais de 20% após fim da recuperação judicial",
+        "Ri Happy pede recuperação extrajudicial",
+        "MP opina a favor de recuperação extrajudicial da Ri Happy",
+        "Caso da Oncoclínicas testa regras da recuperação extrajudicial",
+        "Varejista de móveis pede recuperação judicial",
+    ])
+    grupos = {g["titulo"]: g for g in agrupar_assuntos(itens, TEMA)}
+    assert len(grupos) == 4
+    americanas = grupos["Ações da Americanas disparam mais de 20% após fim da recuperação judicial"]  # a mais recente
+    assert len(americanas["mais"]) == 2
+    assert {o["fonte"] for o in americanas["outros"]} == set()
+    assert len(grupos["MP opina a favor de recuperação extrajudicial da Ri Happy"]["mais"]) == 1
+
+
+def test_painel_nao_junta_mesmo_nome_em_secoes_diferentes_ou_longe_no_tempo():
+    from n8news.painel import agrupar_assuntos
+    a = _itens(["Petrobras capta US$ 2 bilhões em bonds"], "Spreads corporativos")
+    b = _itens(["Moody's eleva rating da Petrobras"], "Recuperação judicial")
+    b[0]["link"] = "https://y/1"
+    assert len(agrupar_assuntos(a + b, TEMA)) == 2
+    c = _itens(["Americanas pede recuperação judicial", "Americanas aprova plano com credores"])
+    c[1]["publicado"] = "2026-11-10T10:00:00+00:00"
+    assert len(agrupar_assuntos(c, TEMA)) == 2
+
+
+def test_painel_junta_mesmo_link_entre_execucoes():
+    from n8news.painel import agrupar_assuntos
+    a, b = _itens(["Título de um jeito", "Outro título totalmente diferente"])
+    b["outros"] = [{"fonte": "Valor", "link": "https://x/0?utm_source=rss"}]
+    grupos = agrupar_assuntos([a, b], TEMA)
+    assert len(grupos) == 1 and grupos[0]["outros"] == [{"fonte": "Valor", "link": "https://x/0?utm_source=rss"}]

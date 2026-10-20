@@ -11,11 +11,13 @@ matéria). A ordem das seções segue os filtros do temas.yaml.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .banco import id_noticia
-from .temas import ResultadoTema, Tema, regiao_da_noticia
+from .busca import chave_link, chave_titulo
+from .temas import ResultadoTema, Tema, _parecidas, _radicais, regiao_da_noticia
 
 TITULO = "Notícias"
 
@@ -67,6 +69,11 @@ def montar_dados(temas: list[Tema], atuais: list[ResultadoTema], historico: list
     for chave, item in itens.items():
         item["id"] = f"{chave[0]}:{chave[1]}"
 
+    lista = []
+    for t in temas:
+        lista += agrupar_assuntos([i for i in itens.values() if i["tema"] == t.id], t)
+    lista += [i for i in itens.values() if i["tema"] not in {t.id for t in temas}]
+
     return {
         "atualizado": agora.isoformat(),
         "temas": [
@@ -74,8 +81,138 @@ def montar_dados(temas: list[Tema], atuais: list[ResultadoTema], historico: list
              "filtros": [{"nome": f.nome, "separar": bool(f.separar_brasil and not f.regiao)} for f in t.filtros]}
             for t in temas
         ],
-        "noticias": sorted(itens.values(), key=lambda i: i["publicado"] or i["coletado"] or "", reverse=True),
+        "noticias": sorted(lista, key=lambda i: i["publicado"] or i["coletado"] or "", reverse=True),
     }
+
+
+# ---------- Uma notícia por assunto ----------
+# O histórico junta várias execuções: a mesma história aparece com títulos
+# diferentes ("Americanas encerra RJ", "Ações da Americanas disparam...").
+# No painel, cada assunto vira um cartão só (a mais recente), com as outras
+# matérias em "Mais N matérias sobre o assunto".
+
+JANELA_ASSUNTO = timedelta(days=3)
+
+# Palavras com maiúscula que não identificam um assunto (início de frase,
+# instituições, lugares). Comparadas pelos 5 primeiros caracteres.
+_NOMES_COMUNS = _radicais("""
+acoes acao justica governo mercado mercados investidores investidor credores credor empresa empresas
+banco bancos bolsa bolsas juros dolar ibovespa brasil brasileira brasileiro eua china europa tribunal
+stj stf tjsp cvm fed tesouro titulos divida dividas risco credito debentures fundo fundos gestora
+gestoras varejista varejistas construtora operadora setor ministro ministerio presidente governo
+como por que quem qual quando onde apos com sem mais menos nova novo novas novos onda alta altas
+queda quedas hora entenda veja saiba analise opiniao exclusivo exclusiva caso grupo grupos rio sao
+paulo janeiro minas sul norte the how why what when new first firstft live update updates week
+""")
+_NOMES_COMUNS |= {"mp", "bc", "sp", "rj", "re", "us", "uk", "eu", "ai", "ia"}
+
+
+def _quando(i: dict) -> datetime | None:
+    try:
+        d = datetime.fromisoformat((i.get("publicado") or i.get("coletado") or "").replace("Z", "+00:00"))
+        return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def _palavras_maiusculas(titulo: str) -> list[str]:
+    return [w for w in re.split(r"[^\w$]+", titulo) if w and (w[0].isupper() or w[0].isdigit())]
+
+
+def _titulo_capitalizado(titulo: str) -> bool:
+    """Title Case (comum em inglês): quase toda palavra começa com maiúscula."""
+    longas = [w for w in re.split(r"\W+", titulo) if len(w) >= 4]
+    return len(longas) >= 3 and sum(w[0].isupper() for w in longas) / len(longas) >= 0.6
+
+
+def _nomes(titulo: str, comuns: set[str], aceitos: set[str] | None) -> set[str]:
+    """Nomes que identificam o assunto (empresas, países...).
+    Em títulos Title Case, só valem nomes vistos também em títulos normais."""
+    nomes = {r for w in _palavras_maiusculas(titulo) if not w.isdigit() for r in _radicais(w)} - comuns
+    return nomes & aceitos if aceitos is not None else nomes
+
+
+def _mesmo_assunto(a: dict, b: dict, genericas: set[str]) -> bool:
+    if a["_links"] & b["_links"] or chave_titulo(a["titulo"]) == chave_titulo(b["titulo"]):
+        return True
+    if _parecidas((a["_rad"], a["_nr"]), (b["_rad"], b["_nr"]), genericas):
+        return True
+    comum = a["_rad"] & b["_rad"]
+    if len(comum - genericas) >= 4 and len(comum) / min(len(a["_rad"]), len(b["_rad"])) >= 0.7:
+        return True  # títulos quase iguais, mesmo sem nome próprio em comum
+    # Mesma seção, mesmo nome (ex: Americanas) e datas próximas
+    # (o nome pode estar em minúscula no outro título: "dívida argentina")
+    if a["filtro"] != b["filtro"] or not ((a["_nomes"] & b["_rad"]) | (b["_nomes"] & a["_rad"])):
+        return False
+    qa, qb = a["_q"], b["_q"]
+    return qa is not None and qb is not None and abs(qa - qb) <= JANELA_ASSUNTO
+
+
+def agrupar_assuntos(itens: list[dict], tema: Tema) -> list[dict]:
+    """Junta as notícias do mesmo assunto num cartão só (a mais recente)."""
+    if len(itens) < 2:
+        return itens
+    genericas = tema.radicais_genericos()
+    comuns = _NOMES_COMUNS | genericas
+    # Nomes muito frequentes no tema (ex: "Brasil") não identificam assunto
+    contagem: dict[str, int] = {}
+    for i in itens:
+        for r in _nomes(i["titulo"], comuns, None):
+            contagem[r] = contagem.get(r, 0) + 1
+    limite = max(6, len(itens) // 6)
+    comuns |= {r for r, n in contagem.items() if n > limite}
+    vistos = set()
+    for i in itens:
+        if not _titulo_capitalizado(i["titulo"]):
+            vistos |= _nomes(i["titulo"], comuns, None)
+    for i in itens:
+        i["_links"] = {chave_link(i["link"])} | {chave_link(o["link"]) for o in i.get("outros") or [] if o.get("link")}
+        i["_rad"] = _radicais(i["titulo"])
+        i["_nr"] = _radicais(" ".join(_palavras_maiusculas(i["titulo"])))
+        i["_nomes"] = _nomes(i["titulo"], comuns, vistos if _titulo_capitalizado(i["titulo"]) else None)
+        i["_q"] = _quando(i)
+
+    # Une os parecidos (um grupo pode encadear várias matérias)
+    pai = list(range(len(itens)))
+
+    def raiz(x):
+        while pai[x] != x:
+            pai[x] = pai[pai[x]]
+            x = pai[x]
+        return x
+
+    for x in range(len(itens)):
+        for y in range(x + 1, len(itens)):
+            if raiz(x) != raiz(y) and _mesmo_assunto(itens[x], itens[y], genericas):
+                pai[raiz(y)] = raiz(x)
+
+    grupos: dict[int, list[dict]] = {}
+    for x, i in enumerate(itens):
+        grupos.setdefault(raiz(x), []).append(i)
+
+    ordem = {f.nome: n for n, f in enumerate(tema.filtros)}
+    minimo = datetime.min.replace(tzinfo=timezone.utc)
+    resultado = []
+    for membros in grupos.values():
+        membros.sort(key=lambda i: i["_q"] or minimo, reverse=True)
+        principal = dict(membros[0])
+        # Seção: a primeira na ordem do temas.yaml (ex: RJ antes de Spreads)
+        principal["filtro"] = min((i["filtro"] for i in membros), key=lambda f: ordem.get(f, len(ordem)))
+        principal["coletado"] = max((i["coletado"] or "" for i in membros), default="") or None
+        # "Também em": outras fontes do mesmo fato, sem repetir jornal
+        vistas, outros = set(principal["fontes"]), []
+        for o in [o for i in membros for o in (i.get("outros") or [])]:
+            if o.get("fonte") and o["fonte"] not in vistas:
+                vistas.add(o["fonte"])
+                outros.append(o)
+        principal["outros"] = outros
+        principal["mais"] = [{"titulo": i["titulo"], "link": i["link"], "fontes": i["fontes"],
+                              "publicado": i["publicado"], "resumo": i["resumo"]} for i in membros[1:]]
+        resultado.append(principal)
+    for i in itens + resultado:
+        for k in ("_links", "_rad", "_nr", "_nomes", "_q"):
+            i.pop(k, None)
+    return resultado
 
 
 def gerar_painel(pasta: str | Path, temas: list[Tema], atuais: list[ResultadoTema],
@@ -151,6 +288,12 @@ h4 { font-size: 13px; margin: 12px 0 6px; }
 .resumo { margin-top: 5px; font-size: 14px; }
 .novo { display: inline-block; font-size: 11px; font-weight: 700; color: var(--novo); background: var(--novo-fundo);
   border-radius: 4px; padding: 0 5px; margin-right: 6px; vertical-align: 1px; }
+.mais { margin-top: 6px; font-size: 13px; }
+.mais summary { color: var(--suave); cursor: pointer; }
+.mais ul { margin: 6px 0 0; padding-left: 18px; }
+.mais li { margin: 3px 0; }
+.mais li a { color: var(--link); text-decoration: none; }
+.mais li span { color: var(--suave); font-size: 12px; }
 .vazio { color: var(--suave); text-align: center; padding: 40px 0; }
 footer { color: var(--suave); font-size: 12px; text-align: center; padding: 20px; }
 </style>
@@ -219,7 +362,8 @@ footer { color: var(--suave); font-size: 12px; text-align: center; padding: 20px
       if (agora - quando(i).getTime() > estado.horas * 3600e3) return false;
       if (estado.soNovas && !ehNova(i)) return false;
       if (termos.length) {
-        var alvo = semAcento([i.titulo, i.resumo, i.fontes.join(" ")].join(" "));
+        var alvo = semAcento([i.titulo, i.resumo, i.fontes.join(" ")].concat(
+          (i.mais || []).map(function (x) { return x.titulo + " " + x.fontes.join(" "); })).join(" "));
         for (var k = 0; k < termos.length; k++) if (alvo.indexOf(termos[k]) < 0) return false;
       }
       return true;
@@ -236,7 +380,17 @@ footer { color: var(--suave); font-size: 12px; text-align: center; padding: 20px
       '<a class="t" href="' + esc(i.link) + '" target="_blank" rel="noopener">' + esc(i.titulo) + "</a>" +
       '<div class="meta">' + esc(i.fontes.join(", ")) + " · " + esc(fmt.format(quando(i))) +
       (outros.length ? " · também em " + outros.join(", ") : "") + "</div>" +
-      (resumo ? '<div class="resumo">' + resumo + "</div>" : "") + "</article>";
+      (resumo ? '<div class="resumo">' + resumo + "</div>" : "") + maisMaterias(i) + "</article>";
+  }
+
+  function maisMaterias(i) {
+    var mais = i.mais || [];
+    if (!mais.length) return "";
+    return '<details class="mais"><summary>Mais ' + mais.length + (mais.length === 1 ? " matéria" : " matérias") +
+      " sobre o assunto</summary><ul>" + mais.map(function (x) {
+        return '<li><a href="' + esc(x.link) + '" target="_blank" rel="noopener">' + esc(x.titulo) + "</a> <span>" +
+          esc(x.fontes.join(", ")) + (x.publicado ? " · " + esc(fmt.format(new Date(x.publicado))) : "") + "</span></li>";
+      }).join("") + "</ul></details>";
   }
 
   function render() {
