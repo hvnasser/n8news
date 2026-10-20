@@ -28,7 +28,11 @@ paises:
   EUR:  { grupo: g10, nomes: [zona do euro, União Europeia, BCE, eurozone, euro area, European Union, ECB, European Central Bank] }
 
   # ---------------- Principais emergentes ----------------
-  BRA:  { grupo: em, nomes: [Brasil, brasileir*, Brazil*, Ibovespa, Banco Central do Brasil, Copom] }
+  BRA:  { grupo: em, nomes: [Brasil, brasileir*, Brazil*, Ibovespa, Banco Central do Brasil, Copom,
+                             # empresas brasileiras (ajudam a reconhecer notícias em inglês)
+                             Petrobras, Itaú, Itau Unibanco, Bradesco, BTG Pactual, Eletrobras, Embraer,
+                             Suzano, JBS, Marfrig, BRF, Braskem, Raízen, Cosan, Localiza, Americanas,
+                             Casas Bahia, Natura, Ambev, Sabesp, Cemig, Copel, Vale SA, Vale S.A.] }
   MEX:  { grupo: em, nomes: [México, mexican*, Mexico, Pemex] }
   CHL:  { grupo: em, nomes: [Chile, chilen*] }
   COL:  { grupo: em, nomes: [Colômbia, colombian*, Colombia] }

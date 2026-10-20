@@ -29,7 +29,7 @@ def resultado():
 
 def test_monta_email_por_tema_e_filtro():
     assunto, corpo, texto = montar_email(resultado(), AGORA)
-    assert assunto == "N8News 20/10/2026 — Crédito: 3 notícias"
+    assert assunto == "N8News 20/10/2026 06h50 — Crédito: 3 notícias"
     # ordem dos filtros do tema; dentro do filtro, mais recente primeiro
     assert corpo.index("Spreads corporativos") < corpo.index("Default e calote")
     assert corpo.index("Debêntures batem recorde") < corpo.index("Ares Warns")
@@ -113,3 +113,30 @@ def test_opiniao_em_negrito():
     res[0].noticias[2].resumo_ia = "Opinião — Fulano: Texto da coluna."
     _, corpo, _ = montar_email(res, AGORA)
     assert "<b>Opinião — Fulano:</b> Texto da coluna." in corpo
+
+
+def test_rj_primeiro_e_brasil_mundo_separados():
+    from n8news.temas import carregar_temas
+    tema = carregar_temas("temas.yaml")[0]
+    assert tema.filtros[0].nome.startswith("Recuperação judicial")
+    rj = Match(noticia("Ri Happy pede RE", "https://a"), [tema.filtros[0].nome], [""], regiao="brasil")
+    rj2 = Match(noticia("Retailer files Chapter 11", "https://b"), [tema.filtros[0].nome], [""], regiao="mundo")
+    br = Match(noticia("Debêntures batem recorde", "https://c"), ["Spreads corporativos"], [""], regiao="brasil")
+    mu = Match(noticia("US junk bond spreads widen", "https://d"), ["Spreads corporativos"], [""], regiao="mundo")
+    _, corpo, texto = montar_email([ResultadoTema(tema, [mu, br, rj2, rj])], AGORA)
+    assert corpo.index("Recuperação judicial") < corpo.index("Spreads corporativos")
+    # RJ não é dividido; spreads é: Brasil antes de Mundo
+    bloco_rj = texto.split("-- Recuperação judicial e extrajudicial --")[1].split("-- ")[0]
+    assert "[Brasil]" not in bloco_rj
+    bloco_sp = texto.split("-- Spreads corporativos --")[1]
+    assert bloco_sp.index("[Brasil]") < bloco_sp.index("Debêntures") < bloco_sp.index("[Mundo]") < bloco_sp.index("US junk")
+
+
+def test_selecionar_novas_e_cabecalho():
+    from n8news.envio import selecionar_novas
+    res = resultado()
+    novas = selecionar_novas(res, {"https://valor.com/d"}, id_de=lambda link: link)
+    assert [m.noticia.link for m in novas[0].noticias] == ["https://g1.com/ri?a=1&b=2", "https://news.google.com/x"]
+    assert len(res[0].noticias) == 3  # o original não muda
+    _, corpo, _ = montar_email(novas, AGORA, desde=datetime(2026, 10, 19, 21, 50, tzinfo=timezone.utc))
+    assert "2 notícias — novas desde o último e-mail (19/10 18:50)" in corpo

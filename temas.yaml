@@ -16,6 +16,10 @@
 #   - use * para aceitar qualquer final: "renegoci*" pega renegociação,
 #     renegociar, renegociou...
 #
+# Em cada filtro também (opcional):
+#   regiao:         brasil | mundo -> o filtro só pega notícias dessa região
+#   separar_brasil: false -> no e-mail, não divide o filtro em Brasil / Mundo
+#
 # No tema:
 #   categorias: só procura em notícias dessas categorias do feeds.yaml
 #               (deixe vazio [] para procurar em todas)
@@ -80,6 +84,62 @@ temas:
       - CDS PP
 
     filtros:
+      - nome: Recuperação judicial e extrajudicial
+        separar_brasil: false   # no e-mail, não divide em Brasil / Mundo
+        palavras:
+          - recuperação judicial
+          - recuperação extrajudicial
+          - pedido de RJ
+          - em RJ
+          - plano de recuperação
+          - Chapter 11
+          - Chapter 15
+          - Chapter 7
+          - administração judicial
+          - administrador judicial
+          - credores
+          - creditors
+
+      - nome: Captações de empresas brasileiras
+        regiao: brasil   # só notícias do Brasil / de empresas brasileiras
+        palavras:
+          - emissão
+          - emissões
+          - emite
+          - emitir
+          - emitiu
+          - capta*
+          - oferta*
+          - precifica*
+          - coloca*
+          - bond sale*
+          - bond offering*
+          - debt offering*
+          - notes offering*
+          - prices notes
+          - prices bonds
+          - sells bonds
+          - raises
+          - empréstimo sindicalizado
+          - sindicaliz*
+        exige:  # tem que ser dívida (não ações, não "emissão de carbono")
+          - debênture*
+          - bond*
+          - eurobond*
+          - nota* comercia*
+          - nota* promissória*
+          - notes
+          - CRA
+          - CRI
+          - FIDC*
+          - título* de dívida
+          - dívida
+          - debt
+          - crédito
+          - empréstimo*
+          - loan*
+          - green bond*
+
       - nome: Spreads corporativos
         palavras:
           - spread*
@@ -238,21 +298,6 @@ temas:
           - país
           - country
           - CDS
-
-      - nome: Recuperação judicial e extrajudicial
-        palavras:
-          - recuperação judicial
-          - recuperação extrajudicial
-          - pedido de RJ
-          - em RJ
-          - plano de recuperação
-          - Chapter 11
-          - Chapter 15
-          - Chapter 7
-          - administração judicial
-          - administrador judicial
-          - credores
-          - creditors
 
       - nome: Renegociação e reestruturação de dívida
         palavras:

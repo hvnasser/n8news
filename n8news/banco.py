@@ -32,6 +32,9 @@ class Supabase:
         self.chave = chave
         self.timeout = timeout
         self._enviar = enviar or self._enviar_http
+        # Controle de envio (coluna enviada_em e tabela envios). Fica False se a
+        # migração supabase/migracoes/002_envios.sql ainda não foi rodada.
+        self.controle_envio = True
 
     @classmethod
     def do_ambiente(cls) -> "Supabase | None":
@@ -61,10 +64,47 @@ class Supabase:
         achadas = {}
         for i in range(0, len(ids), LOTE):
             lote = ids[i : i + LOTE]
-            caminho = f"/noticias?select=id,resumo_ia,texto&id=in.({','.join(lote)})"
-            for linha in self._enviar("GET", caminho, None, self._headers()) or []:
+            filtro = f"&id=in.({','.join(lote)})"
+            linhas = None
+            if self.controle_envio:
+                try:
+                    linhas = self._enviar("GET", "/noticias?select=id,resumo_ia,texto,enviada_em" + filtro,
+                                          None, self._headers())
+                except RuntimeError as e:
+                    if "enviada_em" not in str(e):
+                        raise
+                    self.controle_envio = False  # migração 002 pendente
+            if linhas is None:
+                linhas = self._enviar("GET", "/noticias?select=id,resumo_ia,texto" + filtro, None, self._headers())
+            for linha in linhas or []:
                 achadas[linha["id"]] = linha
         return achadas
+
+    def ultimo_envio(self) -> datetime | None:
+        """Data do último e-mail enviado (None se nunca enviou ou sem controle)."""
+        if not self.controle_envio:
+            return None
+        try:
+            linhas = self._enviar("GET", "/envios?select=enviado_em&order=enviado_em.desc&limit=1",
+                                  None, self._headers())
+        except RuntimeError:
+            self.controle_envio = False  # tabela envios não existe (migração 002 pendente)
+            return None
+        if not linhas:
+            return None
+        return datetime.fromisoformat(linhas[0]["enviado_em"].replace("Z", "+00:00"))
+
+    def registrar_envio(self, ids: list[str], assunto: str, destinatarios: list[str]) -> None:
+        """Marca as notícias como enviadas e registra o e-mail."""
+        if not self.controle_envio:
+            return
+        agora = datetime.now(timezone.utc).isoformat()
+        headers = self._headers({"Prefer": "return=minimal"})
+        for i in range(0, len(ids), LOTE):
+            lote = ids[i : i + LOTE]
+            self._enviar("PATCH", f"/noticias?id=in.({','.join(lote)})", {"enviada_em": agora}, headers)
+        self._enviar("POST", "/envios", {"enviado_em": agora, "assunto": assunto,
+                                         "noticias": len(ids), "destinatarios": destinatarios}, headers)
 
     # ------------------------------------------------------------ escrita
     def _upsert(self, tabela: str, conflito: str, linhas: list[dict]) -> None:

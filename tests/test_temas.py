@@ -14,8 +14,15 @@ def credito():
     return next(t for t in carregar_temas("temas.yaml") if t.id == "credito")
 
 
+_PAISES = None
+
+
 def filtros_que_casam(tema, titulo, resumo="", categoria="economia"):
-    res = classificar([noticia(titulo, resumo, categoria)], [tema])[0]
+    global _PAISES
+    if _PAISES is None:
+        from n8news.paises import carregar_paises
+        _PAISES = carregar_paises("paises.yaml")
+    res = classificar([noticia(titulo, resumo, categoria)], [tema], _PAISES)[0]
     return res.noticias[0].filtros if res.noticias else []
 
 
@@ -36,7 +43,11 @@ def filtros_que_casam(tema, titulo, resumo="", categoria="economia"):
     ("O que está por trás do pedido de falência da Character.AI?", "Default e calote"),
     ("Investors are pushing up the cost of insurance against an Oracle default", "Default e calote"),
     ("Companhia aérea fecha renegociação de dívidas com credores", "Renegociação e reestruturação de dívida"),
-    ("Ghana reaches debt restructuring deal with bondholders", "Renegociação e reestruturação de dívida"),
+    ("Thames Water reaches debt restructuring deal with bondholders", "Renegociação e reestruturação de dívida"),
+    ("Localiza aprova emissão de R$ 1 bilhão em debêntures", "Captações de empresas brasileiras"),
+    ("Ofertas de debêntures superam R$ 3,6 bilhões na última semana", "Captações de empresas brasileiras"),
+    ("Petrobras prices $2 billion bond offering", "Captações de empresas brasileiras"),
+    ("Suzano capta US$ 1 bi com green bond no exterior", "Captações de empresas brasileiras"),
 ])
 def test_entra_no_tema(credito, titulo, filtro):
     assert filtro in filtros_que_casam(credito, titulo)
@@ -58,6 +69,7 @@ def test_entra_no_tema(credito, titulo, filtro):
     ("5 High-Yield Stocks to Buy Now Before Your Retirement Starts", "credito"),
     ("EchoStar gains Speculative Buy rating on $20B deal", "credito"),
     ("Oil prices fall as traders weigh Russia sanctions waiver", "economia"),
+    ("Petrobras anuncia emissão de novas ações", "economia"),
 ])
 def test_nao_entra_no_tema(credito, titulo, categoria):
     assert filtros_que_casam(credito, titulo, categoria=categoria) == []
@@ -131,3 +143,20 @@ def test_agrupa_mesma_noticia_de_jornais_diferentes(credito):
     ])
     ri = next(m for m in res.noticias if "Happy" in m.noticia.titulo)
     assert ri.noticia.fontes == ["Estadão"]
+
+
+
+@pytest.mark.parametrize("titulo, nao_esta_em", [
+    ("Oracle prices $18 billion bond sale", "Captações de empresas brasileiras"),  # empresa estrangeira
+    ("Debêntures incentivadas ignoram rali do mercado", "Captações de empresas brasileiras"),  # mercado, não captação
+])
+def test_captacoes_so_brasil_e_so_emissao(credito, titulo, nao_esta_em):
+    assert nao_esta_em not in filtros_que_casam(credito, titulo)
+
+
+def test_regiao_da_noticia():
+    from n8news.temas import regiao_da_noticia
+    assert regiao_da_noticia("Debêntures incentivadas ignoram rali do mercado", []) == "brasil"
+    assert regiao_da_noticia("What has actually battered the bond market?", []) == "mundo"
+    assert regiao_da_noticia("Risco-país da Argentina supera 700 pontos", ["ARG"]) == "mundo"
+    assert regiao_da_noticia("Petrobras prices bond", ["BRA"]) == "brasil"

@@ -56,7 +56,7 @@ def test_chave_jwt_vai_no_authorization():
     http = FakeHTTP()
     Supabase("https://abc.supabase.co", "eyJabc", enviar=http).existentes(["a"])
     assert http.chamadas[0][3]["Authorization"] == "Bearer eyJabc"
-    assert http.chamadas[0][1] == "/noticias?select=id,resumo_ia,texto&id=in.(a)"
+    assert http.chamadas[0][1] == "/noticias?select=id,resumo_ia,texto,enviada_em&id=in.(a)"
 
 
 def test_todas_as_linhas_tem_as_mesmas_colunas():
@@ -120,3 +120,37 @@ def test_url_com_ou_sem_rest_v1():
     for url in ["https://abc.supabase.co", "https://abc.supabase.co/", "https://abc.supabase.co/rest/v1",
                 "https://abc.supabase.co/rest/v1/", " https://abc.supabase.co/rest/v1 "]:
         assert Supabase(url, "k").base == "https://abc.supabase.co/rest/v1"
+
+
+
+def test_controle_de_envio():
+    http = FakeHTTP({"GET": [{"enviado_em": "2026-10-20T09:50:00+00:00"}]})
+    banco = Supabase("https://abc.supabase.co", "k", enviar=http)
+    assert banco.ultimo_envio() == datetime(2026, 10, 20, 9, 50, tzinfo=timezone.utc)
+    assert http.chamadas[0][1] == "/envios?select=enviado_em&order=enviado_em.desc&limit=1"
+
+    banco.registrar_envio(["a", "b"], "Assunto", ["eu@x.com"])
+    patch, post = http.chamadas[1], http.chamadas[2]
+    assert patch[0] == "PATCH" and patch[1] == "/noticias?id=in.(a,b)" and "enviada_em" in patch[2]
+    assert post[0] == "POST" and post[1] == "/envios"
+    assert post[2]["noticias"] == 2 and post[2]["destinatarios"] == ["eu@x.com"]
+
+
+def test_sem_migracao_002_continua_funcionando():
+    """Antes de rodar 002_envios.sql: lê sem enviada_em e desliga o controle."""
+    chamadas = []
+
+    def enviar(metodo, caminho, corpo, headers):
+        chamadas.append((metodo, caminho))
+        if "enviada_em" in caminho:
+            raise RuntimeError('Supabase 400: {"code":"42703","message":"column noticias.enviada_em does not exist"}')
+        if caminho.startswith("/envios"):
+            raise RuntimeError('Supabase 404: {"code":"PGRST205","message":"Could not find the table public.envios"}')
+        return [{"id": "a", "resumo_ia": "r", "texto": None}]
+
+    banco = Supabase("https://abc.supabase.co", "k", enviar=enviar)
+    assert banco.existentes(["a"]) == {"a": {"id": "a", "resumo_ia": "r", "texto": None}}
+    assert banco.controle_envio is False
+    assert banco.ultimo_envio() is None
+    banco.registrar_envio(["a"], "s", ["x"])  # não faz nada
+    assert not any(m == "PATCH" for m, _ in chamadas)

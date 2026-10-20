@@ -6,6 +6,9 @@ on:
     # Todo dia às 06:50 de Brasília (09:50 UTC). O GitHub pode atrasar alguns
     # minutos. Só funciona depois que este arquivo estiver no branch principal.
     - cron: "50 9 * * *"
+    # Segundo e-mail no fim do dia (18:50 de Brasília): tire o "#" da linha abaixo.
+    # Cada e-mail só traz notícias que ainda não foram enviadas.
+    # - cron: "50 21 * * *"
   push:
     paths:
       - "n8news/**"

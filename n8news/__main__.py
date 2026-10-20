@@ -13,7 +13,7 @@ from pathlib import Path
 from .artigo import baixar_textos
 from .banco import Supabase, id_noticia, reaproveitar
 from .busca import buscar_noticias, carregar_config
-from .envio import enviar_gmail, montar_email
+from .envio import enviar_gmail, montar_email, selecionar_novas
 from .paises import carregar_paises
 from .resumo import carregar_config_ia, resumir_temas
 from .temas import carregar_temas, classificar
@@ -69,9 +69,11 @@ def imprimir_temas(resultados) -> None:
                 print(f"- {n.titulo}  [{palavra}]")
 
 
-def processar_temas(por_tema, args, timeout) -> list[str]:
-    """Texto das matérias, resumo com IA e gravação no Supabase."""
+def processar_temas(por_tema, args, timeout):
+    """Texto das matérias, resumo com IA e gravação no Supabase.
+    Devolve (avisos, banco ou None, ids de notícias já enviadas por e-mail)."""
     avisos: list[str] = []
+    ja_enviadas: set[str] = set()
     principais = [m for res in por_tema for m in res.noticias]
     banco = None if args.sem_banco else Supabase.do_ambiente()
     if banco is None and not args.sem_banco:
@@ -81,6 +83,7 @@ def processar_temas(por_tema, args, timeout) -> list[str]:
         try:
             existentes = banco.existentes(list({id_noticia(m.noticia.link) for m in principais}))
             n = reaproveitar(por_tema, existentes, resumos=not args.refazer_resumos)
+            ja_enviadas = {i for i, linha in existentes.items() if linha.get("enviada_em")}
             print(f"Banco: {len(existentes)} notícias já gravadas ({n} resumos reaproveitados)")
         except Exception as e:  # noqa: BLE001
             # Sem conseguir ler, não grava (evita apagar resumos antigos)
@@ -99,6 +102,41 @@ def processar_temas(por_tema, args, timeout) -> list[str]:
             print(f"Banco: {banco.salvar(por_tema)} notícias gravadas")
         except Exception as e:  # noqa: BLE001
             avisos.append(f"Supabase: erro ao gravar ({e})")
+            banco = None
+    return avisos, banco, ja_enviadas
+
+
+def processar_email(por_tema, args, banco, ja_enviadas) -> list[str]:
+    """Monta (e envia) o e-mail só com notícias ainda não enviadas."""
+    avisos: list[str] = []
+    desde = banco.ultimo_envio() if banco else None
+    controle = bool(banco and banco.controle_envio)
+    novas = selecionar_novas(por_tema, ja_enviadas, id_noticia) if controle else por_tema
+    total = sum(len(r.noticias) for r in novas)
+    assunto, corpo_html, corpo_texto = montar_email(novas, desde=desde)
+    if args.salvar_email:
+        Path(args.salvar_email).write_text(corpo_html, encoding="utf-8")
+        print(f"E-mail salvo em {args.salvar_email} ({total} notícias)")
+    if not args.enviar_email:
+        return avisos
+    if not controle:
+        avisos.append("controle de envio desligado (rode supabase/migracoes/002_envios.sql no Supabase): "
+                      "o e-mail traz todas as notícias das últimas horas, mesmo as já enviadas")
+    if total == 0:
+        print("E-mail não enviado: nenhuma notícia nova desde o último envio")
+        return avisos
+    try:
+        para = enviar_gmail(assunto, corpo_html, corpo_texto)
+        print(f"E-mail enviado para {len(para)} destinatário(s): {assunto}")
+    except Exception as e:  # noqa: BLE001
+        return avisos + [f"E-mail não enviado: {e}"]
+    if controle:
+        try:
+            ids = list({id_noticia(m.noticia.link) for r in novas for m in r.noticias})
+            banco.registrar_envio(ids, assunto, para)
+            print(f"Banco: {len(ids)} notícias marcadas como enviadas")
+        except Exception as e:  # noqa: BLE001
+            avisos.append(f"Supabase: e-mail enviado, mas não consegui marcar as notícias ({e})")
     return avisos
 
 
@@ -128,9 +166,9 @@ def main(argv=None) -> int:
     temas = carregar_temas(args.temas)
     paises = carregar_paises(args.paises) if Path(args.paises).exists() else []
     por_tema = classificar(resultado.noticias, temas, paises)
-    avisos = []
+    avisos, banco, ja_enviadas = [], None, set()
     if not args.todas:
-        avisos = processar_temas(por_tema, args, config.timeout_segundos)
+        avisos, banco, ja_enviadas = processar_temas(por_tema, args, config.timeout_segundos)
 
     if not args.quieto:
         if args.todas:
@@ -152,16 +190,7 @@ def main(argv=None) -> int:
     for res in por_tema:
         print(f"Tema {res.tema.nome}: {len(res.noticias)} notícias")
     if not args.todas and (args.enviar_email or args.salvar_email):
-        assunto, corpo_html, corpo_texto = montar_email(por_tema)
-        if args.salvar_email:
-            Path(args.salvar_email).write_text(corpo_html, encoding="utf-8")
-            print(f"E-mail salvo em {args.salvar_email}")
-        if args.enviar_email:
-            try:
-                para = enviar_gmail(assunto, corpo_html, corpo_texto)
-                print(f"E-mail enviado para {len(para)} destinatário(s): {assunto}")
-            except Exception as e:  # noqa: BLE001
-                avisos.append(f"E-mail não enviado: {e}")
+        avisos += processar_email(por_tema, args, banco, ja_enviadas)
     for aviso in avisos:
         print(f"AVISO: {aviso}")
 

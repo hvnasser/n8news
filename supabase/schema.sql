@@ -17,6 +17,7 @@ create table if not exists public.noticias (
     texto         text,                      -- texto extraído da página (parcial em sites com paywall)
     resumo_ia     text,                      -- resumo gerado pelo Claude
     imagem        text,
+    enviada_em    timestamptz,               -- quando foi enviada por e-mail (vazio = ainda não)
     coletado_em   timestamptz not null default now(),  -- primeira vez que o robô viu a notícia
     atualizado_em timestamptz not null default now(),
     busca         tsvector generated always as (
@@ -35,6 +36,16 @@ create table if not exists public.noticias_temas (
     primary key (noticia_id, tema)
 );
 
+-- Cada e-mail enviado (o próximo e-mail só traz notícias publicadas depois deste).
+create table if not exists public.envios (
+    id            bigint generated always as identity primary key,
+    enviado_em    timestamptz not null default now(),
+    assunto       text,
+    noticias      int,
+    destinatarios text[]
+);
+
+create index if not exists noticias_enviada_em_idx on public.noticias (enviada_em);
 create index if not exists noticias_publicado_em_idx on public.noticias (publicado_em desc);
 create index if not exists noticias_busca_idx on public.noticias using gin (busca);
 create index if not exists noticias_paises_idx on public.noticias using gin (paises);
@@ -44,6 +55,7 @@ create index if not exists noticias_temas_tema_idx on public.noticias_temas (tem
 -- usada pelo robô consegue ler e gravar. A chave pública não vê nada.
 alter table public.noticias enable row level security;
 alter table public.noticias_temas enable row level security;
+alter table public.envios enable row level security;
 
 -- Visão prática para consultar: notícia + tema, mais recentes primeiro.
 create or replace view public.noticias_por_tema

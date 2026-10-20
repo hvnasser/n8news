@@ -30,6 +30,8 @@ class Filtro:
     palavras: list[str]
     exige: list[str] = field(default_factory=list)
     ativo: bool = True
+    regiao: str | None = None      # "brasil" ou "mundo": só pega notícias dessa região
+    separar_brasil: bool = True    # no e-mail, divide o filtro em Brasil / Mundo
 
     def __post_init__(self):
         self._palavras = compilar(self.palavras)
@@ -72,6 +74,7 @@ class Match:
     paises: list[str] = field(default_factory=list)  # códigos dos países citados
     resumo_ia: str = ""  # preenchido pela etapa de resumo
     relevante: bool = True  # a IA pode marcar como fora do tema
+    regiao: str = "mundo"   # "brasil" ou "mundo"
 
 
 @dataclass
@@ -90,6 +93,24 @@ def carregar_temas(caminho: str | Path = "temas.yaml") -> list[Tema]:
         if tema.ativo:
             temas.append(tema)
     return temas
+
+
+_PT = re.compile(r"[ãõçáéíóúâêôà]|\b(de|da|do|das|dos|em|na|no|para|com|que|não|após|sobre|pelo|pela)\b", re.I)
+_EN = re.compile(r"\b(the|of|and|to|in|for|with|on|after|over|amid|as|its|from|by)\b", re.I)
+
+
+def em_portugues(texto: str) -> bool:
+    return len(_PT.findall(texto)) > len(_EN.findall(texto))
+
+
+def regiao_da_noticia(titulo: str, paises: list[str]) -> str:
+    """brasil ou mundo. Cita o Brasil -> brasil; cita outro país -> mundo;
+    não cita país -> pelo idioma do título (português / R$ -> brasil)."""
+    if "BRA" in paises:
+        return "brasil"
+    if paises:
+        return "mundo"
+    return "brasil" if ("R$" in titulo or em_portugues(titulo)) else "mundo"
 
 
 _STOPWORDS = set("""
@@ -178,18 +199,21 @@ def classificar(noticias: list[Noticia], temas: list[Tema], paises: list[Pais] |
             if tema.categorias and not set(n.categorias) & set(tema.categorias):
                 continue
             texto = normalizar(f"{n.titulo} {n.resumo}")
-            casados = [(f.nome, p) for f in tema.filtros if (p := f.casa(texto))]
+            citados = [p.codigo for p in detectar(paises, texto)]
+            regiao = regiao_da_noticia(n.titulo, citados)
+            casados = [(f.nome, p) for f in tema.filtros
+                       if (not f.regiao or f.regiao == regiao) and (p := f.casa(texto))]
             if not casados:
                 continue
             if bloqueio := primeira(tema._excluir, texto):
                 res.excluidas.append((n, bloqueio))
                 continue
-            citados = [p.codigo for p in detectar(paises, texto)]
             # Cita países, mas nenhum da lista permitida (ex: só Gana) -> fora
             if permitidos and citados and not set(citados) & permitidos:
                 res.excluidas.append((n, "país fora da lista: " + ", ".join(citados)))
                 continue
-            res.noticias.append(Match(n, [c[0] for c in casados], [c[1] for c in casados], paises=citados))
+            res.noticias.append(Match(n, [c[0] for c in casados], [c[1] for c in casados],
+                                      paises=citados, regiao=regiao))
         res.noticias = agrupar_parecidas(res.noticias, tema.radicais_genericos())
         resultados.append(res)
     return resultados

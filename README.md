@@ -132,6 +132,18 @@ O e-mail sai pelo Gmail usando uma **senha de app** (não é a sua senha normal)
    - `EMAIL_PARA` (opcional): destinatários separados por vírgula; sem ele,
      o e-mail vai para o próprio `GMAIL_USER`.
 
+**Ordem do e-mail:** segue a ordem dos filtros no `temas.yaml` (hoje:
+Recuperação judicial/extrajudicial primeiro, depois Captações de empresas
+brasileiras, Spreads, Soberanos, Ratings, Default, Renegociação). Dentro de
+cada filtro, as notícias são separadas em **Brasil** e **Mundo** (desligue com
+`separar_brasil: false` no filtro). Brasil = cita o Brasil ou uma empresa
+brasileira, ou não cita país e está em português.
+
+**Só notícias novas:** cada e-mail traz apenas notícias que ainda não foram
+enviadas (ficam marcadas no Supabase). Funciona com um ou dois e-mails por dia.
+Se não houver nada novo, o e-mail não é enviado. Requer rodar uma vez no
+Supabase o arquivo `supabase/migracoes/002_envios.sql` (SQL Editor → Run).
+
 O e-mail é enviado no horário agendado (06:50) ou ao rodar manualmente em
 *Actions → Buscar notícias → Run workflow*; não a cada mudança no código.
 Localmente: `python -m n8news --enviar-email` (ou `--salvar-email email.html`
