@@ -135,7 +135,7 @@ def test_rj_primeiro_e_brasil_mundo_separados():
 def test_selecionar_novas_e_cabecalho():
     from n8news.envio import selecionar_novas
     res = resultado()
-    novas = selecionar_novas(res, {"https://valor.com/d"}, id_de=lambda link: link)
+    novas = selecionar_novas(res, {"https://valor.com/d"}, id_de=lambda m: m.noticia.link)
     assert [m.noticia.link for m in novas[0].noticias] == ["https://g1.com/ri?a=1&b=2", "https://news.google.com/x"]
     assert len(res[0].noticias) == 3  # o original não muda
     _, corpo, _ = montar_email(novas, AGORA, desde=datetime(2026, 10, 19, 21, 50, tzinfo=timezone.utc))

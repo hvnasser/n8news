@@ -11,15 +11,23 @@ matéria). A ordem das seções segue os filtros do temas.yaml.
 from __future__ import annotations
 
 import json
+import os
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from .banco import id_noticia
+from .banco import id_match
 from .busca import chave_link, chave_titulo
 from .temas import ResultadoTema, Tema, _parecidas, _radicais, regiao_da_noticia
 
 TITULO = "Notícias"
+WORKFLOW = "buscar-noticias.yml"
+
+
+def _link_atualizar() -> str:
+    """Página do GitHub com o botão "Run workflow" (o repositório vem do GitHub Actions)."""
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    return f"https://github.com/{repo}/actions/workflows/{WORKFLOW}" if repo else ""
 
 
 def _item(tema_id, filtros, titulo, link, fontes, outros, paises, publicado, coletado, resumo) -> dict:
@@ -57,7 +65,7 @@ def montar_dados(temas: list[Tema], atuais: list[ResultadoTema], historico: list
     for res in atuais:
         for m in res.noticias:
             n = m.noticia
-            chave = (id_noticia(n.link), res.tema.id)
+            chave = (id_match(m), res.tema.id)
             fontes = list(dict.fromkeys(n.fontes + [f for r in m.relacionadas for f in r.fontes]))
             outros = [{"fonte": r.fonte, "link": r.link} for r in m.relacionadas]
             coletado = itens.get(chave, {}).get("coletado") or agora.isoformat()
@@ -226,6 +234,7 @@ def gerar_painel(pasta: str | Path, temas: list[Tema], atuais: list[ResultadoTem
         except Exception as e:  # noqa: BLE001
             avisos.append(f"Painel: não consegui ler o histórico do Supabase ({e}); só notícias de hoje")
     dados = montar_dados(temas, atuais, historico)
+    dados["atualizar"] = _link_atualizar()
     pasta = Path(pasta)
     pasta.mkdir(parents=True, exist_ok=True)
     # "</" escapado para o JSON não fechar a tag <script> antes da hora
@@ -294,14 +303,21 @@ h4 { font-size: 13px; margin: 12px 0 6px; }
 .mais li { margin: 3px 0; }
 .mais li a { color: var(--link); text-decoration: none; }
 .mais li span { color: var(--suave); font-size: 12px; }
+.cabeca { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+a.botao { border: 1px solid var(--borda); background: var(--fundo); color: var(--texto); border-radius: 8px;
+  padding: 4px 10px; font-size: 13px; text-decoration: none; white-space: nowrap; }
+a.botao:hover { background: var(--destaque); color: var(--link); }
 .vazio { color: var(--suave); text-align: center; padding: 40px 0; }
 footer { color: var(--suave); font-size: 12px; text-align: center; padding: 20px; }
 </style>
 </head>
 <body>
 <header><div class="topo">
-  <h1>__TITULO__</h1>
-  <div class="sub" id="sub"></div>
+  <div class="cabeca">
+    <div><h1>__TITULO__</h1><div class="sub" id="sub"></div></div>
+    <a class="botao" id="atualizar" target="_blank" rel="noopener" hidden
+       title="Abre o GitHub: clique em Run workflow. O painel atualiza em 2 a 3 minutos.">Atualizar agora ↗</a>
+  </div>
   <div class="controles">
     <input type="search" id="busca" placeholder="Buscar (ex: Ri Happy, debêntures, França)" aria-label="Buscar">
     <select id="periodo" aria-label="Período">
@@ -438,6 +454,7 @@ footer { color: var(--suave); font-size: 12px; text-align: center; padding: 20px
     });
   });
   if (!corteNovas) el("sonovas").parentNode.style.display = "none";
+  if (D.atualizar) { el("atualizar").href = D.atualizar; el("atualizar").hidden = false; }
   render();
 })();
 </script>

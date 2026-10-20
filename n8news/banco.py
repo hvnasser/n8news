@@ -80,6 +80,26 @@ class Supabase:
                 achadas[linha["id"]] = linha
         return achadas
 
+    def _paginar(self, base: str) -> list[dict]:
+        linhas, pagina = [], 1000
+        while True:
+            lote = self._enviar("GET", f"{base}&limit={pagina}&offset={len(linhas)}", None, self._headers()) or []
+            linhas += lote
+            if len(lote) < pagina:
+                return linhas
+
+    def mapa_links(self, desde: datetime) -> dict[str, str]:
+        """Link (normalizado) -> id de cada notícia gravada desde a data,
+        incluindo os links de "também em". Serve para reconhecer a mesma
+        história quando outro jornal passa a ser o principal."""
+        data = desde.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        mapa: dict[str, str] = {}
+        for linha in self._paginar(f"/noticias?select=id,link,outros_links&coletado_em=gte.{data}&order=coletado_em.asc"):
+            for link in [linha.get("link")] + [o.get("link") for o in linha.get("outros_links") or []]:
+                if link:
+                    mapa.setdefault(chave_link(link), linha["id"])
+        return mapa
+
     def historico(self, desde: datetime) -> list[dict]:
         """Notícias classificadas em temas desde a data (para o painel).
         Uma linha por notícia+tema, com os dados da notícia embutidos."""
@@ -87,12 +107,7 @@ class Supabase:
         base = (f"/noticias_temas?select=tema,filtros,criado_em,noticias({campos})"
                 f"&criado_em=gte.{desde.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}"
                 f"&order=criado_em.desc")
-        linhas, pagina = [], 1000
-        while True:
-            lote = self._enviar("GET", f"{base}&limit={pagina}&offset={len(linhas)}", None, self._headers()) or []
-            linhas += lote
-            if len(lote) < pagina:
-                return linhas
+        return self._paginar(base)
 
     def ultimo_envio(self) -> datetime | None:
         """Data do último e-mail enviado (None se nunca enviou ou sem controle)."""
@@ -132,7 +147,7 @@ class Supabase:
         agora = datetime.now(timezone.utc).isoformat()
         for res in resultados:
             for m in res.noticias:
-                nid = id_noticia(m.noticia.link)
+                nid = id_match(m)
                 noticias.setdefault(nid, linha_noticia(nid, m, agora))
                 temas.append({
                     "noticia_id": nid,
@@ -144,6 +159,34 @@ class Supabase:
             self._upsert("noticias", "id", list(noticias.values()))
             self._upsert("noticias_temas", "noticia_id,tema", temas)
         return len(noticias)
+
+
+def id_match(m: Match) -> str:
+    """Id da notícia no banco: o já gravado para a história, ou o do link."""
+    return m.id_banco or id_noticia(m.noticia.link)
+
+
+def alinhar_com_banco(resultados: list[ResultadoTema], mapa: dict[str, str]) -> int:
+    """Se a história já está gravada (por qualquer um dos links do grupo),
+    usa o mesmo registro em vez de criar outro. Devolve quantas mudaram."""
+    n = 0
+    for res in resultados:
+        for m in res.noticias:
+            if chave_link(m.noticia.link) in mapa:
+                continue
+            grupo = [m.noticia] + m.relacionadas
+            eid = next((mapa[k] for k in (chave_link(x.link) for x in grupo) if k in mapa), None)
+            if not eid:
+                continue
+            n += 1
+            mesma = next((x for x in m.relacionadas if id_noticia(x.link) == eid), None)
+            if mesma:  # o principal gravado antes está no grupo: volta a ser o principal
+                m.relacionadas.remove(mesma)
+                m.relacionadas.insert(0, m.noticia)
+                m.noticia = mesma
+            else:
+                m.id_banco = eid
+    return n
 
 
 def linha_noticia(nid: str, m: Match, agora: str) -> dict:
@@ -174,7 +217,7 @@ def reaproveitar(resultados: list[ResultadoTema], existentes: dict[str, dict], r
     n = 0
     for res in resultados:
         for m in res.noticias:
-            linha = existentes.get(id_noticia(m.noticia.link))
+            linha = existentes.get(id_match(m))
             if not linha:
                 continue
             if resumos and linha.get("resumo_ia") and not m.resumo_ia:

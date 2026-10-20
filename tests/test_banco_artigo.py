@@ -154,3 +154,33 @@ def test_sem_migracao_002_continua_funcionando():
     assert banco.ultimo_envio() is None
     banco.registrar_envio(["a"], "s", ["x"])  # não faz nada
     assert not any(m == "PATCH" for m, _ in chamadas)
+
+
+def test_mapa_links_inclui_tambem_em():
+    linhas = [{"id": "id1", "link": "https://g1.com/a?utm_source=rss",
+               "outros_links": [{"fonte": "Valor", "link": "https://valor.com/b"}]}]
+    http = FakeHTTP({"GET": linhas})
+    mapa = Supabase("https://abc.supabase.co", "k", enviar=http).mapa_links(datetime(2026, 10, 18, tzinfo=timezone.utc))
+    assert mapa == {"g1.com/a": "id1", "valor.com/b": "id1"}
+    assert http.chamadas[0][1].startswith("/noticias?select=id,link,outros_links&coletado_em=gte.2026-10-18T00:00:00Z")
+
+
+def test_mesma_historia_com_outro_principal_nao_duplica():
+    from n8news.banco import alinhar_com_banco, id_match
+    antigo = noticia("Americanas encerra RJ", "https://valor.com/a")
+    # Hoje o principal virou a Folha, mas o link do Valor (já gravado) está no grupo
+    m1 = Match(noticia("Ações da Americanas disparam", "https://folha.com/b"), ["RJ"], [""], relacionadas=[antigo])
+    # Só um link de "também em" bate com o que já está gravado
+    m2 = Match(noticia("Azul conclui Chapter 11", "https://g1.com/c"), ["RJ"], [""],
+               relacionadas=[noticia("Azul sai do Chapter 11", "https://estadao.com/d")])
+    m3 = Match(noticia("Notícia nova", "https://g1.com/nova"), ["RJ"], [""])
+    mapa = {"valor.com/a": id_noticia("https://valor.com/a"), "estadao.com/d": "id_azul"}
+    assert alinhar_com_banco(resultado(m1, m2, m3), mapa) == 2
+    assert m1.noticia.link == "https://valor.com/a" and m1.relacionadas[0].link == "https://folha.com/b"
+    assert id_match(m1) == id_noticia("https://valor.com/a")
+    assert id_match(m2) == "id_azul" and m2.noticia.link == "https://g1.com/c"
+    assert id_match(m3) == id_noticia("https://g1.com/nova")
+    http = FakeHTTP()
+    Supabase("https://abc.supabase.co", "k", enviar=http).salvar(resultado(m1, m2, m3))
+    ids = [l["id"] for l in http.chamadas[0][2]]
+    assert ids == [id_noticia("https://valor.com/a"), "id_azul", id_noticia("https://g1.com/nova")]
