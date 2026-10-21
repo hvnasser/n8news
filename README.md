@@ -17,8 +17,7 @@ painel no GitHub Pages (o envio por e-mail continua disponível).
       resumo, link e tema, para consultar depois.
 - [x] **4. E-mail pelo Gmail**: notícias do dia por tema e filtro, com link,
       fonte, horário (Brasília) e resumo.
-- [x] **5. Agendado** de 3 em 3 horas (00:53, 03:53, 06:53 ... 21:53,
-      Brasília): o Supabase dispara a busca no GitHub (veja *Agendamento*);
+- [x] **5. Agendado** 3x ao dia (06:53, 12:53 e 18:53, Brasília): o Supabase dispara a busca no GitHub (veja *Agendamento*);
       o agendamento do próprio GitHub fica como reserva.
 - [x] **6. Painel no GitHub Pages**: página com as notícias dos últimos 30
       dias, busca, período, Brasil/Mundo e "só novas desde a última visita".
@@ -155,8 +154,7 @@ Localmente: `python -m n8news --painel site` e abra `site/index.html`.
 ## Agendamento (Supabase dispara o GitHub)
 
 O agendamento do próprio GitHub atrasa ou pula horários. Por isso o relógio
-principal é o Supabase: de 3 em 3 horas, no minuto 53 (Brasília 00:53, 03:53
-... 21:53), ele pede ao GitHub para rodar a busca. O agendamento do GitHub
+principal é o Supabase: 3x ao dia (Brasília 06:53, 12:53 e 18:53) ele pede ao GitHub para rodar a busca. O agendamento do GitHub
 continua como reserva e é pulado se já houve busca há menos de 90 minutos.
 
 Para ligar (uma vez):

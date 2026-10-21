@@ -3,11 +3,11 @@ name: Buscar notícias
 on:
   workflow_dispatch:
   # O relógio principal é o Supabase (supabase/migracoes/003_agendador.sql),
-  # que dispara este workflow de 3 em 3 horas no minuto 53 (Brasília 00:53,
-  # 03:53 ... 21:53). O agendamento abaixo é só reserva: o do GitHub atrasa
-  # ou pula horários, e quando roda logo depois de uma busca ele é pulado.
+  # que dispara este workflow 3x ao dia (Brasília 06:53, 12:53 e 18:53).
+  # O agendamento abaixo é só reserva: o do GitHub atrasa ou pula horários,
+  # e quando roda logo depois de uma busca ele é pulado.
   schedule:
-    - cron: "53 */3 * * *"
+    - cron: "53 9,15,21 * * *"
   push:
     paths:
       - "n8news/**"
