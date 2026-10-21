@@ -122,3 +122,12 @@ def test_painel_junta_mesmo_link_entre_execucoes():
     b["outros"] = [{"fonte": "Valor", "link": "https://x/0?utm_source=rss"}]
     grupos = agrupar_assuntos([a, b], TEMA)
     assert len(grupos) == 1 and grupos[0]["outros"] == [{"fonte": "Valor", "link": "https://x/0?utm_source=rss"}]
+
+
+def test_botao_atualizar_aponta_para_o_workflow(tmp_path, monkeypatch):
+    monkeypatch.setenv("GITHUB_REPOSITORY", "fulano/noticias")
+    arquivo, _, _ = gerar_painel(tmp_path, [TEMA], [], banco=None)
+    assert "https://github.com/fulano/noticias/actions/workflows/buscar-noticias.yml" in arquivo.read_text()
+    monkeypatch.delenv("GITHUB_REPOSITORY")
+    arquivo, _, _ = gerar_painel(tmp_path, [TEMA], [], banco=None)
+    assert '"atualizar": ""' in arquivo.read_text()

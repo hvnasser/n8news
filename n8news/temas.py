@@ -75,6 +75,7 @@ class Match:
     resumo_ia: str = ""  # preenchido pela etapa de resumo
     relevante: bool = True  # a IA pode marcar como fora do tema
     regiao: str = "mundo"   # "brasil" ou "mundo"
+    id_banco: str = ""      # id já gravado no Supabase para esta história (se diferente do link)
 
 
 @dataclass

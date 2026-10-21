@@ -8,16 +8,20 @@ import argparse
 import json
 import sys
 from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .artigo import baixar_textos
-from .banco import Supabase, id_noticia, reaproveitar
+from .banco import Supabase, alinhar_com_banco, id_match, reaproveitar
 from .busca import buscar_noticias, carregar_config
 from .envio import enviar_gmail, montar_email, selecionar_novas
 from .painel import gerar_painel
 from .paises import carregar_paises
 from .resumo import carregar_config_ia, resumir_temas
 from .temas import carregar_temas, classificar
+
+
+JANELA_REPETIDAS = 3  # dias: procura a mesma história gravada nesse período
 
 
 def quando(n) -> str:
@@ -82,7 +86,14 @@ def processar_temas(por_tema, args, timeout):
 
     if banco:
         try:
-            existentes = banco.existentes(list({id_noticia(m.noticia.link) for m in principais}))
+            # Mesma história já gravada com outro link principal: usa o mesmo registro
+            mapa = banco.mapa_links(datetime.now(timezone.utc) - timedelta(days=JANELA_REPETIDAS))
+            if (n := alinhar_com_banco(por_tema, mapa)):
+                print(f"Banco: {n} notícias já gravadas com outro link (não serão duplicadas)")
+        except Exception as e:  # noqa: BLE001
+            avisos.append(f"Supabase: não consegui checar repetidas ({e})")
+        try:
+            existentes = banco.existentes(list({id_match(m) for m in principais}))
             n = reaproveitar(por_tema, existentes, resumos=not args.refazer_resumos)
             ja_enviadas = {i for i, linha in existentes.items() if linha.get("enviada_em")}
             print(f"Banco: {len(existentes)} notícias já gravadas ({n} resumos reaproveitados)")
@@ -112,7 +123,7 @@ def processar_email(por_tema, args, banco, ja_enviadas) -> list[str]:
     avisos: list[str] = []
     desde = banco.ultimo_envio() if banco else None
     controle = bool(banco and banco.controle_envio)
-    novas = selecionar_novas(por_tema, ja_enviadas, id_noticia) if controle else por_tema
+    novas = selecionar_novas(por_tema, ja_enviadas, id_match) if controle else por_tema
     total = sum(len(r.noticias) for r in novas)
     assunto, corpo_html, corpo_texto = montar_email(novas, desde=desde)
     if args.salvar_email:
@@ -133,7 +144,7 @@ def processar_email(por_tema, args, banco, ja_enviadas) -> list[str]:
         return avisos + [f"E-mail não enviado: {e}"]
     if controle:
         try:
-            ids = list({id_noticia(m.noticia.link) for r in novas for m in r.noticias})
+            ids = list({id_match(m) for r in novas for m in r.noticias})
             banco.registrar_envio(ids, assunto, para)
             print(f"Banco: {len(ids)} notícias marcadas como enviadas")
         except Exception as e:  # noqa: BLE001

@@ -17,8 +17,9 @@ painel no GitHub Pages (o envio por e-mail continua disponível).
       resumo, link e tema, para consultar depois.
 - [x] **4. E-mail pelo Gmail**: notícias do dia por tema e filtro, com link,
       fonte, horário (Brasília) e resumo.
-- [x] **5. Agendado** 3x por dia (06:50, 12:50 e 18:50, Brasília) pelo
-      GitHub Actions (vale depois que o código estiver no branch principal).
+- [x] **5. Agendado** de 3 em 3 horas (00:53, 03:53, 06:53 ... 21:53,
+      Brasília) pelo GitHub Actions. O GitHub às vezes atrasa ou pula um
+      horário; o seguinte cobre.
 - [x] **6. Painel no GitHub Pages**: página com as notícias dos últimos 30
       dias, busca, período, Brasil/Mundo e "só novas desde a última visita".
       O e-mail fica desligado (dá para religar, veja abaixo).
@@ -138,6 +139,16 @@ Para ligar (uma vez):
 
 Atenção: no plano gratuito o GitHub Pages é **público** (qualquer pessoa com
 o link vê; a página pede para não ser indexada por buscadores).
+
+**Atualizar agora:** o botão no topo do painel abre o GitHub; clique em
+*Run workflow* (precisa estar logado). O painel muda em 2 a 3 minutos.
+
+**Uma notícia por assunto:** o painel junta num cartão só as notícias do
+mesmo assunto (mesmo link, títulos parecidos ou a mesma empresa/país na mesma
+seção em até 3 dias); as outras ficam em "Mais N matérias sobre o assunto".
+No Supabase, se a mesma história volta com outro jornal como principal (mas
+algum link do grupo já foi gravado nos últimos 3 dias), ela atualiza o
+registro existente em vez de criar outro.
 
 Localmente: `python -m n8news --painel site` e abra `site/index.html`.
 

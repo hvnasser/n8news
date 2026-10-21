@@ -103,8 +103,9 @@ def _item(m, partes: list[str], texto: list[str]) -> None:
 
 
 def selecionar_novas(resultados: list[ResultadoTema], ja_enviadas: set[str], id_de) -> list[ResultadoTema]:
-    """Cópia dos resultados só com notícias que ainda não foram enviadas."""
-    return [ResultadoTema(r.tema, [m for m in r.noticias if id_de(m.noticia.link) not in ja_enviadas])
+    """Cópia dos resultados só com notícias que ainda não foram enviadas.
+    `id_de(match)` devolve o id da notícia no banco."""
+    return [ResultadoTema(r.tema, [m for m in r.noticias if id_de(m) not in ja_enviadas])
             for r in resultados]
 
 
