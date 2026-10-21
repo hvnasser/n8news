@@ -17,7 +17,7 @@ painel no GitHub Pages (o envio por e-mail continua disponível).
       resumo, link e tema, para consultar depois.
 - [x] **4. E-mail pelo Gmail**: notícias do dia por tema e filtro, com link,
       fonte, horário (Brasília) e resumo.
-- [x] **5. Agendado** de 3 em 3 horas (00:50, 03:50, 06:50 ... 21:50,
+- [x] **5. Agendado** de 3 em 3 horas (00:53, 03:53, 06:53 ... 21:53,
       Brasília) pelo GitHub Actions. O GitHub às vezes atrasa ou pula um
       horário; o seguinte cobre.
 - [x] **6. Painel no GitHub Pages**: página com as notícias dos últimos 30

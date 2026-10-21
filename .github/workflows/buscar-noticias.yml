@@ -5,8 +5,9 @@ on:
   schedule:
     # Horários de Brasília (o GitHub usa UTC e pode atrasar alguns minutos).
     # Só funciona com este arquivo no branch principal do repositório.
-    # De 3 em 3 horas: 00:50, 03:50, 06:50, 09:50, 12:50, 15:50, 18:50, 21:50
-    - cron: "50 */3 * * *"
+    # De 3 em 3 horas: 00:53, 03:53, 06:53, 09:53, 12:53, 15:53, 18:53, 21:53
+    # (minuto quebrado: no minuto 0 o GitHub fica mais cheio e atrasa mais)
+    - cron: "53 */3 * * *"
   push:
     paths:
       - "n8news/**"
